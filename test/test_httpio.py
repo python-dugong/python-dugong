@@ -1,7 +1,7 @@
 '''
 test_httpio.py - Unit tests for httpio.py - run with py.test
 
-Copyright (C) 2013 Nikolaus Rath <Nikolaus@rath.org>
+Copyright (c) Nikolaus Rath <Nikolaus@rath.org>
 
 This module may be distributed under the terms of the Python Software Foundation
 License Version 2.  The complete license text may be retrieved from
@@ -40,12 +40,12 @@ def ssl_context(path=None):
     return context
 
 
-class TestHTTPServer(threading.Thread):
+class MockHTTPServer(threading.Thread):
     def __init__(self):
         super().__init__()
         self.host = 'localhost'
         self.httpd = socketserver.TCPServer((self.host, 0),
-                                            TestRequestHandler)
+                                            MockRequestHandler)
         self.port = self.httpd.socket.getsockname()[1]
 
     def run(self):
@@ -58,7 +58,7 @@ class TestHTTPServer(threading.Thread):
 
 @pytest.fixture(scope='module')
 def http_server(request):
-    httpd = TestHTTPServer()
+    httpd = MockHTTPServer()
     httpd.start()
     request.addfinalizer(httpd.shutdown)
     return httpd
@@ -329,9 +329,9 @@ def test_head(conn):
 with open(__file__, 'rb') as fh:
     DUMMY_DATA = fh.read()
     
-class TestRequestHandler(BaseHTTPRequestHandler):
+class MockRequestHandler(BaseHTTPRequestHandler):
 
-    server_version = "TestHTTP"
+    server_version = "MockHTTP"
     protocol_version = 'HTTP/1.1'
     
     def handle_expect_100(self):
