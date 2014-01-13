@@ -19,7 +19,7 @@ def main():
           keywords=['http'],
           package_dir={'': '.'},
           packages=setuptools.find_packages(),
-          url='https://pypi.python.org/pypi/httpio/',
+          url='https://bitbucket.org/nikratio/python-httpio',
           classifiers=['Programming Language :: Python :: 3',
                        'Development Status :: 5 - Production/Stable',
                        'Intended Audience :: Developers',
