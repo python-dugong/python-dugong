@@ -1,8 +1,6 @@
-The Python httpio Module
-========================
-
-About
------
+==========================
+ The Python httpio Module
+==========================
 
 This module provides an alternative to the standard library's
 *http.client* module. In contrast to *http.client*,
@@ -35,28 +33,27 @@ Of course, these features come for a price:
   determine which requests have already been processed and which ones
   need to be resend.
 
-   
-Installation
-------------
 
-As usual, download and extract the tarball, then run
-  
+Installation
+============
+
+As usual: download and extract the tarball, then run ::
+
   # python setup.py install [--user]
 
 To run the self-tests, install `py.test`_ and run ::
 
   # py.test
-  
+
 
 Getting Help
-------------
+============
 
 The documentation can be `read online`__ and is also included in the
 *doc/html* directory of the httpio tarball.
 
 Please report any bugs on the `issue tracker`_. For discussion and
 questions, please subscribe to the `httpio mailing list`_.
-
 
 
 .. __: http://pythonhosted.org/httpio/
