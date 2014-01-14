@@ -2,4 +2,5 @@ syntax: regexp
 ^httpio\.egg-info$
 ^build$
 ^dist$
+^doc$
 __pycache__

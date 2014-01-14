@@ -4,8 +4,7 @@ httpio.py - Python HTTP Client Module
 Copyright (C) Nikolaus Rath <Nikolaus@rath.org>
 
 This module may be distributed under the terms of the Python Software Foundation
-License Version 2.  The complete license text may be retrieved from
-http://hg.python.org/cpython/file/65f2c92ed079/LICENSE.
+License Version 2.
 '''
 
 import socket
@@ -16,6 +15,8 @@ from collections import deque
 import email.parser
 from http.client import (LineTooLong, HTTPS_PORT, HTTP_PORT, NO_CONTENT, NOT_MODIFIED)
 from select import select
+
+__version__ = '1.0'
 
 log = logging.getLogger(__name__)
 
@@ -55,8 +56,12 @@ class StateError(_GeneralError):
 
 
 class ExcessBodyData(_GeneralError):
+    '''
+    Raised when trying to send more data to the server than
+    announced.
+    '''
+    
     msg = 'Cannot send larger request body than announced'
-
 
 class InvalidResponse(_GeneralError):
     '''
@@ -86,267 +91,6 @@ class ConnectionClosed(_GeneralError):
 class HTTPConnection:
     '''
     This class encapsulates a HTTP connection.
-
-    In contrast to the standard library's http.client module, this class
-
-     - allows you to send multiple requests right after each other without
-       having to read the responses first.
-
-     - supports waiting for 100-continue before sending the request body.
-
-     - raises an exception instead of silently delivering partial data if the
-       connection is closed before all data has been received.
-
-     - raises one specific exception (ConnectionClosed) if the connection has
-       been closed (while http.client connection may raise any of
-       BrokenPipeError, BadStatusLineError, ConnectionAbortedError,
-       ConnectionResetError, or simply return '' on read)
-
-    These features come for a price:
-
-     - It is recommended to use this class only for idempotent HTTP
-       methods. This is because if a connection is terminated earlier than
-       expected (e.g. because of the server sending an unsupported reply) but
-       responses for multiple requests are pending, the client cannot determine
-       which requests have been processed.
-
-     - Only HTTP 1.1 connections are supported
-
-     - Responses and requests *must* specify a Content-Length header when
-       not using chunked encoding.
-
-    If a server response doesn't fulfill the last two requirements, an
-    `UnsupportedResponse` exception is raised. Typically, this means that
-    synchronization with the server will be lost, so the connection needs to be
-    reset by calling the `close` method.
-
-    All request and response headers are represented as strings, but must be
-    encodable in latin1. Request and response body must be bytes.
-
-
-    Avoiding Deadlocks
-    ------------------
-
-    The `HTTPConnection` class allows you to send an unlimited number of
-    requests to the server before reading any of the responses. However, at some
-    point the transmit and receive buffers on both the ends of the connection
-    will fill up, and no more requests can be send before at least some of the
-    responses are read, and attempts to send more data to the server will
-    block. If the thread that attempts to send data is is also responsible for
-    reading the responses, this will result in a deadlock.
-
-    There are several ways to avoid this:
-    
-    - Do not send a new request before the last response has been read. This is
-      the easiest solution, but it means that no HTTP pipelining can be used.
-
-    - Use different threads for sending requests and receiving responses. This
-      may or may not be easy to do in your application.
-
-    - Use the *via_cofun* parameter of `send_request` to send requests, and a
-      combination of `write` with *partial=True* and `select` to send request
-      body data.
-
-      
-    Coroutine based API
-    -------------------
-    
-    The last point warrants slightly more explanation. When called with
-    ``via_cofun=True``, the `send_request` method does not send the request
-    itself, but prepares and returns a cofunction (in form of a Python
-    generator) that performs the actual transmission.  A cofunction is entered
-    and resumed by passing it to the built-in `next` function. Execution of the
-    cofunction is completed (and all data has been sent) when the `next` call
-    raises `StopIteration`. This means that a cofunction can be conviently used
-    as iterator in a for loop: whenever the cofunction suspends, the loop body
-    will be executed, and then the coroutine resumed.
-
-    The confunction based API is suitable to avoid deadlocks, because the
-    cofunctions returned by this class will suspend sending request data as soon
-    as (even partial) response data has been received from the server. To avoid
-    congestion of the transmit buffers (and eventual deadlock), the caller is
-    expected to read the available response data (using one of the ``read*``
-    methods) before resuming the cofunction.
-    
-    In code, this looks as follows::
-
-        documents = [ '/file_{}.html'.format(x) for x in range(10) ]
-        conn = HTTPConnection('www.server.com')
-
-        def read_response():
-            nonlocal out_fh
-            if conn.get_current_response(): 
-                # Active response, so we are reading body
-                out_fh.write(conn.read(8192))
-            else:
-                # No active response
-                (method, url, status, reason, header) = conn.read_response()
-                assert status == 200
-                out_fh = open(url[1:], 'w')
-
-        # Try to send all the requests...
-        for doc in documents:
-            cofun = conn.send_request('GET', doc, via_cofun=True)
-            for _ in cofun: # value of _ is irrelevant and undefined
-                # ..but interrupt if partial response data is available
-                read_response()
-
-        # All requests send, now read rest of responses
-        while conn.response_pending():
-            read_response()
-
-            
-    If request body data needs to be transmitted as well, a bit more work is
-    needed. In principle, the `write` method could return a cofunction as
-    well. However, this typically does not make sense as `write` itself is
-    already called repeatedly until all data has been written. Instead, `write`
-    therefore accepts a *partial=True* argument, which causes it to write only as
-    much data as currently fits into the transmit buffer (the actual number of
-    bytes written is returned). As long as a prior `select` indicates that the
-    connection is ready for writing, calls to `write` (with ``partial=True``)
-    are then guaranteed not to block.
-
-    For example, a number of large files could be uploaded using pipelining with
-    the following code::
-
-        from select import select
-        from http.client import NO_CONTENT
-        
-        files = [ 'file_{}.tgz'.format(x) for x range(10) ]
-        conn = HTTPConnection('www.server.com')
-
-        def read_response():
-            (method, url, status, reason, header) = conn.read_response()
-            assert status == NO_CONTENT
-            assert conn.read(42) == b''
-
-        for name in files:
-            cofun = conn.send_request('PUT', '/' + name, via_cofun=True,
-                                      body=os.path.getsize(name))
-            for _ in cofun:
-                read_response()
-
-            with open(name, 'rb') as fh:
-                buf = b''
-                while True:
-                    (writeable, readable, _) = select((conn,), (conn,), ())
-                    if readable:
-                        read_response()
-
-                    if not writeable:
-                        continue
-
-                    if not buf:
-                        buf = fh.read(8192)
-                        if not buf:
-                            break
-
-                    len_ = conn.write(buf, partial=True)
-                    buf = buf[len_:]
-
-        # All requests sent, now read rest of responses
-        while conn.response_pending():
-            read_response()
-
-            
-    Since sending a file-like object as the request body is a rather common use
-    case, there actually is a convenience `co_sendfile` method that provides a
-    cofunction for this special case. Using `co_sendfile`, the outer loop in the
-    above code can be written as::
-
-        for name in files:
-            cofun = conn.send_request('PUT', '/' + name, via_cofun=True,
-                                      body=os.path.getsize(name))
-            for _ in cofun:
-                read_response()
-
-            with open(name, 'rb') as fh:
-                cofun = conn.co_sendfile(fh)
-                for _ in cofun:
-                    read_response()
-
-
-    The use of coroutines and `select` allows pipelining with low latency and
-    high throughput. However, it should be noted that even when using the
-    techniques described above `HTTPConnection` instances do not provide a fully
-    non-blocking API. Both the `read` and `read_response` methods may still
-    block if insufficient data is available in the receive buffer. This is
-    because `read_response` always reads the entire response header, and `read`
-    always retrieves chunk headers completely. It is expected that this will not
-    significantly impact throughput, as response headers are typically short
-    enough to be transmitted in a single TCP packet, and the likelihood of a
-    chunk header being split among two packets is very small.
-
-    It is also important that `select` should only be used with `HTTPConnection`
-    instances to avoid congestion when pipelining multiple requests, i.e. to
-    interrupt transmitting request data when response data is available. In
-    particular, a `select` call MUST NOT must not be used to wait for incoming
-    data. This can lead to a deadlock, since server responses are buffered
-    internally by the `HTTPConnection` instance and may thus be available for
-    retrieval even if `select` reports that no data is available for reading
-    from the socket.
-
-    100-Continue Support
-    --------------------
-
-    When having to transfer large amounts of request bodies to the server, you
-    typically do not want to sent all the data over the network just to find out
-    that the server rejected the request because of e.g. insufficient
-    permissions. To avoid this situation, HTTP 1.1 specifies the "100-continue"
-    mechanism. When using 100-continue, the client transmits an additional
-    "Expect: 100-continue" request header, and then waits for the server to
-    reply with status "100 Continue" before sending the request body data. If
-    the server instead responds with an error, the client can avoid pointless
-    transmission of the request body.
-
-    To use this mechanism with `httpio`, simply pass the *expect100* parameter
-    to `send_request`, and call `read_response` twice: once before sending body
-    data, and a second time to read the final response::
-
-        conn = HTTPConnection(hostname)
-        conn.send_request('PUT', '/huge_file', body=os.path.getsize(filename),
-                          expect100=True)
-                          
-        (method, url, status, reason, header) = conn.read_response()
-        if status != 100:
-            raise RuntimeError('Server said: %s' % reason)
-
-        with open(filename, 'rb') as fh:
-            for _ in conn.co_sendfile(fh):
-                pass
-                
-        (method, url, status, reason, header) = conn.read_response()
-        assert status in (200, 204)
-
-        
-    Attributes
-    ----------
-
-     :proxy:
-          a tuple ``(hostname, port)`` of the proxy server to use or `None`.
-          Note that currently only CONNECT-style proxying is supported.
-     :_pending_requests:
-          a deque of ``(method, url, body_len)`` tuples corresponding to
-          requests whose response has not yet been read completely. Requests
-          with Expect: 100-continue will be added twice to this queue, once
-          after the request header has been sent, and once after the request
-          body data has been sent. *body_len* is None, or the size of the
-          **request** body that still has to be sent when using 100-continue.
-     :_out_remaining:
-          This attribute is None when a request has been sent completely.  If
-          request headers have been sent, but request body data is still
-          pending, it is set to a ``(method, url, body_len)`` tuple. *body_len*
-          is the number of bytes that that still need to send, or
-          WAITING_FOR_100c if we are waiting for a 100 response from the server.
-     :_in_remaining:
-          Number of remaining bytes of the current response body (or current
-          chunk), or None if the response header has not yet been read.
-     :_encoding:
-          Transfer encoding of the active response (if any).
-     :_coroutine_active:
-          True if there is an active coroutine (there can be only one, since
-          otherwise outgoing data from the different coroutines could get
-          interleaved)
     '''
 
     def __init__(self, hostname, port=None, ssl_context=None, proxy=None):
@@ -359,15 +103,40 @@ class HTTPConnection:
         else:
             self.port = port
 
-        self.proxy = proxy
         self.ssl_context = ssl_context
         self.hostname = hostname
         self._sock_fh = None
         self._sock = None
+            
+        #: a tuple ``(hostname, port)`` of the proxy server to use or `None`.
+        #: Note that currently only CONNECT-style proxying is supported.
+        self.proxy = proxy
+        
+        #: a deque of ``(method, url, body_len)`` tuples corresponding to
+        #: requests whose response has not yet been read completely. Requests
+        #: with Expect: 100-continue will be added twice to this queue, once
+        #: after the request header has been sent, and once after the request
+        #: body data has been sent. *body_len* is None, or the size of the
+        #: **request** body that still has to be sent when using 100-continue.
         self._pending_requests = deque()
+        
+        #: This attribute is None when a request has been sent completely.  If
+        #: request headers have been sent, but request body data is still
+        #: pending, it is set to a ``(method, url, body_len)`` tuple. *body_len*
+        #: is the number of bytes that that still need to send, or
+        #: WAITING_FOR_100c if we are waiting for a 100 response from the server.
         self._out_remaining = None
+        
+        #: Number of remaining bytes of the current response body (or current
+        #: chunk), or None if the response header has not yet been read.
         self._in_remaining = None
+        
+        #: Transfer encoding of the active response (if any).
         self._encoding = None
+
+        #: True if there is an active coroutine (there can be only one, since
+        #: otherwise outgoing data from the different coroutines could get
+        #: interleaved)
         self._coroutine_active = False
 
 
@@ -904,7 +673,7 @@ class HTTPConnection:
                 break
     
     def read(self, len_):
-        '''Read len_ bytes of response body data
+        '''Read *len_* bytes of response body data
         
         This method may return less than *len_* bytes, but will return b'' only
         if the response body has been read completely. Further attempts to read
