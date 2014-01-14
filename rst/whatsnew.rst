@@ -1,0 +1,6 @@
+===========
+ Changelog
+===========
+
+.. include:: ../Changes.rst
+
