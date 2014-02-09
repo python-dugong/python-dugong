@@ -15,6 +15,9 @@ Classes
 .. autoclass:: HTTPConnection
    :members:
 
+.. autoclass:: HTTPResponse
+   :members:
+      
 .. autoclass:: BodyFollowing
    :members:
 

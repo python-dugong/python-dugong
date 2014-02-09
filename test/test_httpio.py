@@ -98,9 +98,9 @@ def test_connect_ssl(ssl_context):
 
     conn = HTTPConnection(SSL_TEST_HOST, ssl_context=ssl_context)
     conn.send_request('GET', '/')
-    (method, url, status, reason, header) = conn.read_response()
-    assert status == 200
-    assert url == '/'
+    resp = conn.read_response()
+    assert resp.status == 200
+    assert resp.url == '/'
     readall(conn)
     conn.close()
 
@@ -123,7 +123,7 @@ def test_get_pipeline(conn):
         if conn.get_current_response():
             conn.read(BUFSIZE)
         else:
-            (method, url, status, reason, header) = conn.read_response()
+            conn.read_response()
 
     interrupted = False
     sleeptime = 0.01
@@ -148,24 +148,27 @@ def test_get_pipeline(conn):
 
 def test_read_identity(conn):
     conn.send_request('GET', '/send_10_bytes')
-    (method, url, status, reason, header) = conn.read_response()
-    assert status == 200
-    assert url == '/send_10_bytes'
+    resp = conn.read_response()
+    assert resp.status == 200
+    assert resp.url == '/send_10_bytes'
+    assert resp.length == 10
     assert readall(conn) == 10
 
 def test_read_chunked(conn):
     conn.send_request('GET', '/send_3_15-byte_chunks')
-    (method, url, status, reason, header) = conn.read_response()
-    assert status == 200
+    resp = conn.read_response()
+    assert resp.status == 200
+    assert resp.length is None
     assert readall(conn) == 3*15
     
 def test_double_read(conn):
     conn.send_request('GET', '/send_10_bytes')
-    (method, url, status, reason, header) = conn.read_response()
-    assert status == 200
-    assert url == '/send_10_bytes'
+    resp = conn.read_response()
+    assert resp.status == 200
+    assert resp.length == 10
+    assert resp.url == '/send_10_bytes'
     with pytest.raises(httpio.StateError):
-        (method, url, status, reason, header) = conn.read_response()
+        resp = conn.read_response()
     
 
 def writeall(conn, buf):
@@ -175,14 +178,16 @@ def writeall(conn, buf):
 
 def test_put(conn):
     conn.send_request('PUT', '/allgood', body=b'a nice body string')
-    (method, url, status, reason, header) = conn.read_response()
-    assert status == 204
+    resp = conn.read_response()
+    assert resp.status == 204
+    assert resp.length == 0
 
 def test_body_separate(conn):
     conn.send_request('PUT', '/allgood', body=BodyFollowing(50))
     writeall(conn, DUMMY_DATA[:50])    
-    (method, url, status, reason, header) = conn.read_response()
-    assert status == 204
+    resp = conn.read_response()
+    assert resp.status == 204
+    assert resp.length == 0
     
 def test_write_toomuch(conn):
     conn.send_request('PUT', '/allgood', body=BodyFollowing(42))
@@ -205,9 +210,9 @@ def test_write_toolittle3(conn):
     conn.send_request('GET', '/send_10_bytes')
     conn.send_request('PUT', '/allgood', body=BodyFollowing(42))
     writeall(conn, DUMMY_DATA[:24])
-    (method, url, status, reason, header) = conn.read_response()
-    assert status == 200
-    assert url == '/send_10_bytes'
+    resp = conn.read_response()
+    assert resp.status == 200
+    assert resp.url == '/send_10_bytes'
     assert readall(conn) == 10
     with pytest.raises(httpio.StateError):
         conn.read_response()
@@ -217,8 +222,8 @@ def test_co_sendfile(conn):
     conn.send_request('PUT', '/allgood', body=BodyFollowing(len(DUMMY_DATA)//2))
     for _ in conn.co_sendfile(fh):
         pass
-    (method, url, status, reason, header) = conn.read_response()
-    assert status == 204
+    resp = conn.read_response()
+    assert resp.status == 204
     
 def test_co_sendfile2(conn):
     fh = BytesIO(DUMMY_DATA)
@@ -230,22 +235,24 @@ def test_co_sendfile2(conn):
     fh.seek(0)
     for _ in conn.co_sendfile(fh):
         pass
-    (method, url, status, reason, header) = conn.read_response()
-    assert status == 204
+    resp = conn.read_response()
+    assert resp.status == 204
 
 def test_100cont(conn):
     conn.send_request('PUT', '/fail_with_403', body=BodyFollowing(256),
                       expect100=True)
-    (method, url, status, reason, header) = conn.read_response()
-    assert status == 403
+    resp = conn.read_response()
+    assert resp.status == 403
     readall(conn)
     
     conn.send_request('PUT', '/all_good', body=BodyFollowing(256), expect100=True)
-    (method, url, status, reason, header) = conn.read_response()
-    assert status == 100
+    resp = conn.read_response()
+    assert resp.status == 100
+    assert resp.length == 0
     writeall(conn, DUMMY_DATA[:256])
-    (method, url, status, reason, header) = conn.read_response()
-    assert status == 204
+    resp = conn.read_response()
+    assert resp.status == 204
+    assert resp.length == 0
     
 def test_100cont_2(conn):
     conn.send_request('PUT', '/fail_with_403', body=BodyFollowing(256),
@@ -265,9 +272,9 @@ def test_tunnel(http_server):
     conn = HTTPConnection('remote_server', proxy=(http_server.host, http_server.port))
     
     conn.send_request('GET', '/send_10_bytes')
-    (method, url, status, reason, header) = conn.read_response()
-    assert status == 200
-    assert url == '/send_10_bytes'
+    resp = conn.read_response()
+    assert resp.status == 200
+    assert resp.url == '/send_10_bytes'
     assert readall(conn) == 10
     conn.close()
 
@@ -280,16 +287,16 @@ def test_request_via_cofun(conn):
     for _ in cofun:
         pass
     
-    (method, url, status, reason, header) = conn.read_response()
-    assert status == 200
+    resp = conn.read_response()
+    assert resp.status == 200
     assert readall(conn) == 10
 
 def test_read_toomuch(conn):
     conn.send_request('GET', '/send_10_bytes')
     conn.send_request('GET', '/send_8_bytes')
-    (method, url, status, reason, header) = conn.read_response()
-    assert status == 200
-    assert url == '/send_10_bytes'
+    resp = conn.read_response()
+    assert resp.status == 200
+    assert resp.url == '/send_10_bytes'
     assert readall(conn) == 10
     with pytest.raises(httpio.StateError):
         conn.read(8)
@@ -297,34 +304,34 @@ def test_read_toomuch(conn):
         
 def test_read_toolittle(conn):
     conn.send_request('GET', '/send_10_bytes')
-    (method, url, status, reason, header) = conn.read_response()
-    assert status == 200
-    assert url == '/send_10_bytes'
+    resp = conn.read_response()
+    assert resp.status == 200
+    assert resp.url == '/send_10_bytes'
     conn.read(8)
     with pytest.raises(httpio.StateError):
-        (method, url, status, reason, header) = conn.read_response()
+        resp = conn.read_response()
 
         
 def test_current_response(conn):
     assert conn.get_current_response() is None
     conn.send_request('GET', '/send_10_bytes')
-    (method, url, status, reason, header) = conn.read_response()
-    assert conn.get_current_response() == (method, url)
+    resp = conn.read_response()
+    assert conn.get_current_response() == (resp.method, resp.url)
     conn.read(5)
-    assert conn.get_current_response() == (method, url)
+    assert conn.get_current_response() == (resp.method, resp.url)
     readall(conn)
     assert conn.get_current_response() is None
     
 
 def test_head(conn):
     conn.send_request('HEAD', '/send_10_bytes')
-    (method, url, status, reason, header) = conn.read_response()
-    assert status == 200
+    resp = conn.read_response()
+    assert resp.status == 200
     assert readall(conn) == 0
     
     conn.send_request('HEAD', '/fail_with_317')
-    (method, url, status, reason, header) = conn.read_response()
-    assert status == 317
+    resp = conn.read_response()
+    assert resp.status == 317
     assert readall(conn) == 0
 
 

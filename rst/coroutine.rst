@@ -71,8 +71,8 @@ the following code::
     conn = HTTPConnection('www.server.com')
 
     def read_response():
-        (method, url, status, reason, header) = conn.read_response()
-        assert status == NO_CONTENT
+        resp = conn.read_response()
+        assert resp.status == NO_CONTENT
         assert conn.read(42) == b''
 
     for name in files:

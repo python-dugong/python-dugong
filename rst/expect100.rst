@@ -22,9 +22,9 @@ and a second time to read the final response::
     conn.send_request('PUT', '/huge_file', expect100=True,
                       body=BodyFollowing(os.path.getsize(filename)))
 
-    (method, url, status, reason, header) = conn.read_response()
-    if status != 100:
-        raise RuntimeError('Server said: %s' % reason)
+    resp = conn.read_response()
+    if resp.status != 100:
+        raise RuntimeError('Server said: %s' % resp.reason)
 
     with open(filename, 'rb') as fh:
         for _ in conn.co_sendfile(fh):
@@ -33,6 +33,6 @@ and a second time to read the final response::
             # response below.
             break
 
-    (method, url, status, reason, header) = conn.read_response()
-    assert status in (200, 204)
+    resp = conn.read_response()
+    assert resp.status in (200, 204)
 

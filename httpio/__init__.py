@@ -35,6 +35,36 @@ IDENTITY_ENCODING = 'identity_encoding'
 # for a 100-continue response from the server
 WAITING_FOR_100c = object()
 
+class HTTPResponse:
+    '''
+    This class encapsulates information about HTTP response.  Instances of this
+    class are returned by the `HTTPConnection.read_response` method and have
+    access to response status, reason, and headers.  Response body data
+    has to be read directly from the `HTTPConnection` instance.
+    '''
+
+    def __init__(self, method, url, status, reason, headers,
+                 length=None):
+        
+        #: HTTP Method of the request this was response is associated with
+        self.method = method
+
+        #: URL of the request this was response is associated with
+        self.url = url
+
+        #: HTTP status code returned by the server
+        self.status = status
+
+        #: HTTP reason phrase returned by the server
+        self.reason = reason
+
+        #: HTTP Response headers, a `email.message.Message` instance
+        self.headers = headers
+
+        #: Length of the response body or `None`, if not known
+        self.length = length
+
+
 class BodyFollowing:
     '''
 
@@ -516,14 +546,9 @@ class HTTPConnection:
     def read_response(self):
         '''Read response status line and headers
 
-        Return a tuple ``(method, url, code, reason, headers)``.
-
-        *method* and *url* are the HTTP method and request URL of the HTTP
-        request whose response has been read. *code* is the HTTP status code of
-        the response, and *reason* the HTTP reason phrase provided by the
-        server. *headers* is a `email.message.Message` instance that provides
-        access to the response headers (but not the response body, which must be
-        read using the `.read` or `.readall` methods).
+        Return a `HTTPResponse` object containing information about
+        response status, reason, and headers. The response body data
+        may be retrieved with the `.read` or `.readall` methods.
 
         Even for a response with empty body, the `read` method must be called
         once before the next response can be processed.
@@ -560,7 +585,7 @@ class HTTPConnection:
 
             # Return early, because we don't have to prepare
             # for reading the response body at this time
-            return (method, url, status, reason, header)
+            return HTTPResponse(method, url, status, reason, header, length=0)
 
         # Handle non-100 status when waiting for 100-continue
         elif body_size is not None:
@@ -580,6 +605,7 @@ class HTTPConnection:
         #
         # Prepare to read body
         #
+        body_length = None
         
         tc = header['Transfer-Encoding']
         if tc:
@@ -600,6 +626,7 @@ class HTTPConnection:
         if (status == NO_CONTENT or status == NOT_MODIFIED or
             100 <= status < 200 or method == 'HEAD'):
             log.debug('no content by RFC')
+            body_length = 0
             self._in_remaining = 0
             # for these cases, there isn't even a zero chunk we could read
             self._encoding = IDENTITY_ENCODING
@@ -612,16 +639,17 @@ class HTTPConnection:
         # the exception to read(), so that we can still return
         # the headers and status.
         elif 'Content-Length' not in header:
-            log.debug('no content length and no chuckend encoding, will raise on read')
+            log.debug('no content length and no chunkend encoding, will raise on read')
             self._encoding = UnsupportedResponse('No content-length and no chunked encoding')
             self._in_remaining = 0
             
         else:
             self._in_remaining = int(header['Content-Length'])
+            body_length = self._in_remaining
 
-        log.debug('setting up for %d byte body', self._in_remaining)
-                
-        return (method, url, status, reason, header)
+        log.debug('setting up for %d byte body chunk', self._in_remaining)
+
+        return HTTPResponse(method, url, status, reason, header, body_length)
 
     def _read_status(self):
         '''Read response line'''
