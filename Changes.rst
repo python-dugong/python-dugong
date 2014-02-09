@@ -23,6 +23,8 @@ Unreleased Changes
 * Fixed `~HTTPConnection.co_sendfile` to send the actual data instead
   of just \0 bytes.
 
+* `HTTPConnection.read` now accepts `None` for the *len_* parameter.
+
 Release 1.0 (2013-07-13)
 ========================
 

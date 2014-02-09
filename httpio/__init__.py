@@ -743,18 +743,23 @@ class HTTPConnection:
             if not buf:
                 break
     
-    def read(self, len_):
+    def read(self, len_=None):
         '''Read *len_* bytes of response body data
         
         This method may return less than *len_* bytes, but will return b'' only
         if the response body has been read completely. Further attempts to read
         more data after b'' has been returned will result in `StateError` being
         raised.
+
+        If *len_* is `None`, this method behaves like `.readall`.
         '''
         
         if self._in_remaining is None:
             raise StateError('No active response with body')
 
+        if len_ is None:
+            return self.readall()
+        
         if not isinstance(len_, (int)):
             raise TypeError('*len_* must be int')
 
