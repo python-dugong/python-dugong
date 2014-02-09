@@ -5,6 +5,10 @@ Copyright (C) Nikolaus Rath <Nikolaus@rath.org>
 
 This module may be distributed under the terms of the Python Software Foundation
 License Version 2.
+
+The CaseInsensitiveDict implementation is copyright 2013 Kenneth Reitz and
+licensed under the Apache License, Version 2.0
+(http://www.apache.org/licenses/LICENSE-2.0)
 '''
 
 import socket
@@ -12,6 +16,7 @@ import logging
 import errno
 import ssl
 from collections import deque
+from collections.abc import MutableMapping, Mapping
 import email.parser
 from http.client import (LineTooLong, HTTPS_PORT, HTTP_PORT, NO_CONTENT, NOT_MODIFIED)
 from select import select
@@ -389,6 +394,11 @@ class HTTPConnection:
         data will be send using the *chunked* encoding (which may or may not be
         supported by the remote server).
 
+        *headers* should be a mapping containing the HTTP headers to be send
+        with the request. Multiple header lines with the same key are not
+        supported. It is recommended to pass a `CaseInsensitiveDict` instance,
+        other mappings will be converted to `CaseInsensitiveDict` automatically.
+        
         If *via_cofun* is True, this method does not actually send any data
         but returns a coroutine in form of a generator.  The request data must
         then be sent by repeatedly calling `next` on the generator until
@@ -408,7 +418,9 @@ class HTTPConnection:
             raise StateError('body data has not been sent completely yet')
 
         if headers is None:
-            headers = dict()
+            headers = CaseInsensitiveDict()
+        elif not isinstance(headers, CaseInsensitiveDict):
+            headers = CaseInsensitiveDict(headers)
 
         pending_body_size = None
         if body is None:
@@ -840,3 +852,75 @@ def is_temp_network_error(exc):
         return True
 
     return False
+
+
+class CaseInsensitiveDict(MutableMapping):
+    """A case-insensitive `dict`-like object.
+
+    Implements all methods and operations of
+    :class:`collections.abc.MutableMapping` as well as `.copy`.
+
+    All keys are expected to be strings. The structure remembers the case of the
+    last key to be set, and :meth:`!iter`, :meth:`!keys` and :meth:`!items` will
+    contain case-sensitive keys. However, querying and contains testing is case
+    insensitive::
+
+        cid = CaseInsensitiveDict()
+        cid['Accept'] = 'application/json'
+        cid['aCCEPT'] == 'application/json' # True
+        list(cid) == ['Accept'] # True
+
+    For example, ``headers['content-encoding']`` will return the value of a
+    ``'Content-Encoding'`` response header, regardless of how the header name
+    was originally stored.
+
+    If the constructor, :meth:`!update`, or equality comparison operations are
+    given multiple keys that have equal lower-case representions, the behavior
+    is undefined.
+    """
+    
+    def __init__(self, data=None, **kwargs):
+        self._store = dict()
+        if data is None:
+            data = {}
+        self.update(data, **kwargs)
+
+    def __setitem__(self, key, value):
+        # Use the lowercased key for lookups, but store the actual
+        # key alongside the value.
+        self._store[key.lower()] = (key, value)
+
+    def __getitem__(self, key):
+        return self._store[key.lower()][1]
+
+    def __delitem__(self, key):
+        del self._store[key.lower()]
+
+    def __iter__(self):
+        return (casedkey for casedkey, mappedvalue in self._store.values())
+
+    def __len__(self):
+        return len(self._store)
+
+    def lower_items(self):
+        """Like :meth:`!items`, but with all lowercase keys."""
+        return (
+            (lowerkey, keyval[1])
+            for (lowerkey, keyval)
+            in self._store.items()
+        )
+
+    def __eq__(self, other):
+        if isinstance(other, Mapping):
+            other = CaseInsensitiveDict(other)
+        else:
+            return NotImplemented
+        # Compare insensitively
+        return dict(self.lower_items()) == dict(other.lower_items())
+
+    # Copy is required
+    def copy(self):
+         return CaseInsensitiveDict(self._store.values())
+
+    def __repr__(self):
+        return '%s(%r)' % (self.__class__.__name__, dict(self.items()))

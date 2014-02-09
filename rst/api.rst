@@ -21,7 +21,10 @@ Classes
 .. autoclass:: BodyFollowing
    :members:
 
-      
+.. autoclass:: CaseInsensitiveDict
+   :members:
+
+   
 Exceptions
 ----------
 
