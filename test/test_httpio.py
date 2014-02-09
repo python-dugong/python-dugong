@@ -8,16 +8,18 @@ License Version 2.  The complete license text may be retrieved from
 http://hg.python.org/cpython/file/65f2c92ed079/LICENSE.
 '''
 
-from httpio import HTTPConnection, BUFSIZE, BodyFollowing
+from httpio import HTTPConnection, BUFSIZE, BodyFollowing, CaseInsensitiveDict
 import httpio
 from http.server import BaseHTTPRequestHandler, _quote_html
 from io import BytesIO
+from base64 import b64encode
 import http.client
 import pytest
 import time
 import ssl
 import re
 import os
+import hashlib
 import threading
 import socketserver
 
@@ -222,6 +224,84 @@ def test_write_toolittle3(conn):
     with pytest.raises(httpio.StateError):
         conn.read_response()
 
+def test_content_md5_sendfile(conn):
+    fh = BytesIO(DUMMY_DATA)
+    conn.send_request('PUT', '/allgood', body=BodyFollowing(len(DUMMY_DATA)))
+    fh.seek(0)
+    for _ in conn.co_sendfile(fh):
+        pass
+    resp = conn.read_response()
+    conn.discard()
+    assert resp.status == 204
+    assert resp.reason == 'Ok, but no MD5'
+
+    md5 = b64encode(hashlib.md5(DUMMY_DATA).digest()).decode('ascii')
+    headers = CaseInsensitiveDict()
+    headers['Content-MD5'] = md5
+    conn.send_request('PUT', '/allgood', body=BodyFollowing(len(DUMMY_DATA)),
+                      headers=headers)
+    fh.seek(0)
+    for _ in conn.co_sendfile(fh):
+        pass
+    resp = conn.read_response()
+    conn.discard()
+    assert resp.status == 204
+    assert resp.reason == 'MD5 matched'
+    
+    conn.send_request('PUT', '/allgood', body=BodyFollowing(len(DUMMY_DATA)-1),
+                      headers=headers)
+    fh.seek(0)
+    for _ in conn.co_sendfile(fh):
+        pass
+    resp = conn.read_response()
+    conn.discard()
+    assert resp.status == 400
+    assert resp.reason.startswith('MD5 mismatch')
+
+def test_content_md5_byteslike(conn):
+    data = DUMMY_DATA
+    conn.send_request('PUT', '/allgood', body=data)
+    resp = conn.read_response()
+    conn.discard()
+    assert resp.status == 204
+    assert resp.reason == 'MD5 matched'
+    
+    headers = CaseInsensitiveDict()
+    headers['Content-MD5'] = 'nUzaJEag3tOdobQVU/39GA=='
+    conn.send_request('PUT', '/allgood', body=data, headers=headers)
+    resp = conn.read_response()
+    conn.discard()
+    assert resp.status == 400
+    assert resp.reason.startswith('MD5 mismatch')
+
+def test_content_md5_following(conn):
+    data = DUMMY_DATA
+    conn.send_request('PUT', '/allgood', body=BodyFollowing(len(data)))
+    writeall(conn, data)
+    resp = conn.read_response()
+    conn.discard()
+    assert resp.status == 204
+    assert resp.reason == 'Ok, but no MD5'
+    
+    headers = CaseInsensitiveDict()
+    headers['Content-MD5'] = b64encode(hashlib.md5(data).digest()).decode('ascii')
+    conn.send_request('PUT', '/allgood', body=BodyFollowing(len(data)),
+                      headers=headers)
+    writeall(conn, data)
+    resp = conn.read_response()
+    conn.discard()
+    assert resp.status == 204
+    assert resp.reason == 'MD5 matched'
+
+    headers['Content-MD5'] = 'nUzaJEag3tOdobQVU/39GA=='
+    conn.send_request('PUT', '/allgood', body=BodyFollowing(len(data)),
+                      headers=headers)
+    writeall(conn, data)
+    resp = conn.read_response()
+    conn.discard()
+    assert resp.status == 400
+    assert resp.reason.startswith('MD5 mismatch')
+    
 def test_co_sendfile(conn):
     fh = BytesIO(DUMMY_DATA)
     conn.send_request('PUT', '/allgood', body=BodyFollowing(len(DUMMY_DATA)//2))
@@ -401,9 +481,19 @@ class MockRequestHandler(BaseHTTPRequestHandler):
             return
 
         len_ = int(self.headers['Content-Length'])
-        self.rfile.read(len_)
+        data = self.rfile.read(len_)
+        if 'Content-MD5' in self.headers:
+            md5 = b64encode(hashlib.md5(data).digest()).decode('ascii')
+            if md5 != self.headers['Content-MD5']:
+                self.send_error(400, 'MD5 mismatch: %s vs %s'
+                                   % (md5, self.headers['Content-MD5']))
+                return
 
-        self.send_response(204)
+            self.send_response(204, 'MD5 matched')
+        else:
+            self.send_response(204, 'Ok, but no MD5')
+            
+        self.send_header('Content-Length', '0')
         self.end_headers()
         
 
