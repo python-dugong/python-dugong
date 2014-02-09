@@ -138,11 +138,11 @@ class HTTPConnection:
         #: requests whose response has not yet been read completely. Requests
         #: with Expect: 100-continue will be added twice to this queue, once
         #: after the request header has been sent, and once after the request
-        #: body data has been sent. *body_len* is None, or the size of the
+        #: body data has been sent. *body_len* is `None`, or the size of the
         #: **request** body that still has to be sent when using 100-continue.
         self._pending_requests = deque()
         
-        #: This attribute is None when a request has been sent completely.  If
+        #: This attribute is `None` when a request has been sent completely.  If
         #: request headers have been sent, but request body data is still
         #: pending, it is set to a ``(method, url, body_len)`` tuple. *body_len*
         #: is the number of bytes that that still need to send, or
@@ -505,7 +505,7 @@ class HTTPConnection:
     def get_current_response(self):
         '''Get method and URL of active response 
 
-        Return None if there is no active response.
+        Return `None` if there is no active response.
         '''
 
         if self._in_remaining is None:
@@ -516,7 +516,14 @@ class HTTPConnection:
     def read_response(self):
         '''Read response status line and headers
 
-        Return a tuple (method, url, code, message, headers).
+        Return a tuple ``(method, url, code, reason, headers)``.
+
+        *method* and *url* are the HTTP method and request URL of the HTTP
+        request whose response has been read. *code* is the HTTP status code of
+        the response, and *reason* the HTTP reason phrase provided by the
+        server. *headers* is a `email.message.Message` instance that provides
+        access to the response headers (but not the response body, which must be
+        read using the `.read` or `.readall` methods).
 
         Even for a response with empty body, the `read` method must be called
         once before the next response can be processed.
