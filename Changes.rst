@@ -16,6 +16,11 @@ Unreleased Changes
 * `~HTTPConnection.send_request` now converts the *header* parameter
   to a `CaseInsensitiveDict`.
 
+* `~HTTPConnection.send_request` now automatically generates a
+  ``Content-MD5`` header when the body is passed in as a bytes-like
+  object.
+
+
 Release 1.0 (2013-07-13)
 ========================
 

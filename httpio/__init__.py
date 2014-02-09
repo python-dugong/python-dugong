@@ -15,6 +15,8 @@ import socket
 import logging
 import errno
 import ssl
+import hashlib
+from base64 import b64encode
 from collections import deque
 from collections.abc import MutableMapping, Mapping
 import email.parser
@@ -443,6 +445,8 @@ class HTTPConnection:
             body = None
         elif isinstance(body, (bytes, bytearray, memoryview)):
             headers['Content-Length'] = str(len(body))
+            if 'Content-MD5' not in headers:
+                headers['Content-MD5'] = b64encode(hashlib.md5(body).digest()).decode('ascii')
         else:
             raise TypeError('*body* must be None, bytes-like or BodyFollowing')
 
