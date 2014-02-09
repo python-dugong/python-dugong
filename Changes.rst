@@ -20,6 +20,8 @@ Unreleased Changes
   ``Content-MD5`` header when the body is passed in as a bytes-like
   object.
 
+* Fixed `~HTTPConnection.co_sendfile` to send the actual data instead
+  of just \0 bytes.
 
 Release 1.0 (2013-07-13)
 ========================

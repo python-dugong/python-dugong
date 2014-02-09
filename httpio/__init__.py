@@ -353,6 +353,9 @@ class HTTPConnection:
             raise RuntimeError('Cannot have multiple coroutines sending simultaneously')
 
         buf = bytearray(min(BUFSIZE, self._out_remaining[2]))
+        # We work on a memoryview instead of the bytearray, because
+        # slicing a bytearray creates a new object.
+        buf = memoryview(buf)
         sbuf = buf[:0]
         self._coroutine_active = True
         try:
