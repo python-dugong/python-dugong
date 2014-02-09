@@ -28,7 +28,10 @@ and a second time to read the final response::
 
     with open(filename, 'rb') as fh:
         for _ in conn.co_sendfile(fh):
-            pass
+            # Something is probably wrong, the server send a response
+            # before we sent all the data. Expect to get an error
+            # response below.
+            break
 
     (method, url, status, reason, header) = conn.read_response()
     assert status in (200, 204)
