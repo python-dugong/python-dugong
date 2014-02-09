@@ -531,17 +531,6 @@ class HTTPConnection:
 
         return len(self._pending_requests) > 0
 
-
-    def get_current_response(self):
-        '''Get method and URL of active response 
-
-        Return `None` if there is no active response.
-        '''
-
-        if self._in_remaining is None:
-            return None
-        else:
-            return self._pending_requests[0][:2]
     
     def read_response(self):
         '''Read response status line and headers

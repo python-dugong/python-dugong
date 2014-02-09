@@ -119,19 +119,22 @@ def test_invalid_ssl(ssl_context):
 
 def test_get_pipeline(conn):
     
-    def read_response():
-        if conn.get_current_response():
-            conn.read(BUFSIZE)
-        else:
-            conn.read_response()
-
     interrupted = False
     sleeptime = 0.01
     for doc in ('/send_%d_120-byte_chunks' % x for x in range(30)):
         cofun = conn.send_request('GET', doc, via_cofun=True)
         for _ in cofun:
-            read_response()
-            interrupted = True
+            if not interrupted:
+                # First call, start by reading response
+                conn.read_response()
+                interrupted = True
+                continue
+
+            # Later call, response is already active
+            buf = conn.read(BUFSIZE)
+            if not buf and conn.response_pending():
+                # We reached the end of the response body
+                conn.read_response()
 
         # We want to be interrupted at least once, so wait a little bit
         # before sending the next request
@@ -141,7 +144,9 @@ def test_get_pipeline(conn):
             sleeptime *= 2
         
     while conn.response_pending():
-        read_response()
+        buf = conn.read(BUFSIZE)
+        if not buf and conn.response_pending():
+            conn.read_response()
 
     assert interrupted
 
@@ -311,17 +316,6 @@ def test_read_toolittle(conn):
     with pytest.raises(httpio.StateError):
         resp = conn.read_response()
 
-        
-def test_current_response(conn):
-    assert conn.get_current_response() is None
-    conn.send_request('GET', '/send_10_bytes')
-    resp = conn.read_response()
-    assert conn.get_current_response() == (resp.method, resp.url)
-    conn.read(5)
-    assert conn.get_current_response() == (resp.method, resp.url)
-    readall(conn)
-    assert conn.get_current_response() is None
-    
 
 def test_head(conn):
     conn.send_request('HEAD', '/send_10_bytes')
