@@ -8,7 +8,7 @@ License Version 2.  The complete license text may be retrieved from
 http://hg.python.org/cpython/file/65f2c92ed079/LICENSE.
 '''
 
-from httpio import HTTPConnection, BUFSIZE
+from httpio import HTTPConnection, BUFSIZE, BodyFollowing
 import httpio
 from http.server import BaseHTTPRequestHandler, _quote_html
 from io import BytesIO
@@ -179,31 +179,31 @@ def test_put(conn):
     assert status == 204
 
 def test_body_separate(conn):
-    conn.send_request('PUT', '/allgood', body=50)
+    conn.send_request('PUT', '/allgood', body=BodyFollowing(50))
     writeall(conn, DUMMY_DATA[:50])    
     (method, url, status, reason, header) = conn.read_response()
     assert status == 204
     
 def test_write_toomuch(conn):
-    conn.send_request('PUT', '/allgood', body=42)
+    conn.send_request('PUT', '/allgood', body=BodyFollowing(42))
     with pytest.raises(httpio.ExcessBodyData):
         writeall(conn, DUMMY_DATA[:43])
     
 def test_write_toolittle(conn):
-    conn.send_request('PUT', '/allgood', body=42)
+    conn.send_request('PUT', '/allgood', body=BodyFollowing(42))
     writeall(conn, DUMMY_DATA[:24])
     with pytest.raises(httpio.StateError):
         conn.send_request('GET', '/send_5_bytes')
         
 def test_write_toolittle2(conn):
-    conn.send_request('PUT', '/allgood', body=42)
+    conn.send_request('PUT', '/allgood', body=BodyFollowing(42))
     writeall(conn, DUMMY_DATA[:24])
     with pytest.raises(httpio.StateError):
         conn.read_response()
 
 def test_write_toolittle3(conn):
     conn.send_request('GET', '/send_10_bytes')
-    conn.send_request('PUT', '/allgood', body=42)
+    conn.send_request('PUT', '/allgood', body=BodyFollowing(42))
     writeall(conn, DUMMY_DATA[:24])
     (method, url, status, reason, header) = conn.read_response()
     assert status == 200
@@ -214,7 +214,7 @@ def test_write_toolittle3(conn):
 
 def test_co_sendfile(conn):
     fh = BytesIO(DUMMY_DATA)
-    conn.send_request('PUT', '/allgood', body=len(DUMMY_DATA)//2)
+    conn.send_request('PUT', '/allgood', body=BodyFollowing(len(DUMMY_DATA)//2))
     for _ in conn.co_sendfile(fh):
         pass
     (method, url, status, reason, header) = conn.read_response()
@@ -222,7 +222,7 @@ def test_co_sendfile(conn):
     
 def test_co_sendfile2(conn):
     fh = BytesIO(DUMMY_DATA)
-    conn.send_request('PUT', '/allgood', body=2*len(DUMMY_DATA)-2)
+    conn.send_request('PUT', '/allgood', body=BodyFollowing(2*len(DUMMY_DATA)-2))
     for _ in conn.co_sendfile(fh):
         pass
     with pytest.raises(httpio.StateError):
@@ -234,12 +234,13 @@ def test_co_sendfile2(conn):
     assert status == 204
 
 def test_100cont(conn):
-    conn.send_request('PUT', '/fail_with_403', body=256, expect100=True)
+    conn.send_request('PUT', '/fail_with_403', body=BodyFollowing(256),
+                      expect100=True)
     (method, url, status, reason, header) = conn.read_response()
     assert status == 403
     readall(conn)
     
-    conn.send_request('PUT', '/all_good', body=256, expect100=True)
+    conn.send_request('PUT', '/all_good', body=BodyFollowing(256), expect100=True)
     (method, url, status, reason, header) = conn.read_response()
     assert status == 100
     writeall(conn, DUMMY_DATA[:256])
@@ -247,13 +248,14 @@ def test_100cont(conn):
     assert status == 204
     
 def test_100cont_2(conn):
-    conn.send_request('PUT', '/fail_with_403', body=256, expect100=True)
+    conn.send_request('PUT', '/fail_with_403', body=BodyFollowing(256),
+                      expect100=True)
 
     with pytest.raises(httpio.StateError):
-        conn.send_request('PUT', '/fail_with_403', body=256, expect100=True)
+        conn.send_request('PUT', '/fail_with_403', body=BodyFollowing(256), expect100=True)
 
 def test_100cont_3(conn):
-    conn.send_request('PUT', '/fail_with_403', body=256, expect100=True)
+    conn.send_request('PUT', '/fail_with_403', body=BodyFollowing(256), expect100=True)
 
     with pytest.raises(httpio.StateError):
         conn.write(b'barf!')

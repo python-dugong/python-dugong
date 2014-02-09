@@ -8,12 +8,17 @@ Functions
 
 .. autofunction:: is_temp_network_error
 
+
 Classes
 -------
 
 .. autoclass:: HTTPConnection
    :members:
 
+.. autoclass:: BodyFollowing
+   :members:
+
+      
 Exceptions
 ----------
 

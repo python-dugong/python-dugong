@@ -35,6 +35,28 @@ IDENTITY_ENCODING = 'identity_encoding'
 # for a 100-continue response from the server
 WAITING_FOR_100c = object()
 
+class BodyFollowing:
+    '''
+
+    Sentinel class for the *body* parameter of the
+    `~HTTPConnection.send_request` method. Passing an instance of this class
+    declares that body data is going to be provided in separate calls to the
+    `~HTTPConnection.write` method (or the `~HTTPConnection.co_sendfile`
+    wrapper).
+
+    If no length is specified in the constructor, the body data will be send
+    using *chunked* encoding, which may or may not be supported by the remote
+    server.
+    '''
+
+    __slots__ = 'length'
+    
+    def __init__(self, length=None):
+        #: the length of the body data that is going to be send, or `None`
+        #: to use chunked encoding.
+        self.length = length
+
+        
 class _GeneralError(Exception):
     msg = 'General HTTP Error'
 
@@ -330,8 +352,12 @@ class HTTPConnection:
         '''Send a new HTTP request to the server
 
         The message body may be passed in the *body* argument or be sent
-        separately using the *send_data* method. In the later case, *body* must
-        be an integer specifying the size of the data that will be sent.
+        separately using the `.write` method (or the `.co_sendfile` wrapper). In
+        the former case, *body* must be a :term:`bytes-like object`. In the
+        latter case, *body* must be an a `BodyFollowing` instance specifying the
+        length of the data that will be sent. If no length is specified, the
+        data will be send using the *chunked* encoding (which may or may not be
+        supported by the remote server).
 
         If *via_cofun* is True, this method does not actually send any data
         but returns a coroutine in form of a generator.  The request data must
@@ -341,7 +367,7 @@ class HTTPConnection:
         receive buffer.
         '''
 
-        if expect100 and not isinstance(body, int):
+        if expect100 and not isinstance(body, BodyFollowing):
             raise ValueError('expect100 only allowed for separate body')
         
         if self._sock is None:
@@ -357,24 +383,26 @@ class HTTPConnection:
         pending_body_size = None
         if body is None:
             headers['Content-Length'] = '0'
-        elif isinstance(body, int):
-            log.debug('preparing to send %d bytes of body data', body)
+        elif isinstance(body, BodyFollowing):
+            if body.length is None:
+                raise ValueError('Chunked encoding not yet supported.')
+            log.debug('preparing to send %d bytes of body data', body.length)
             if expect100:
                 headers['Expect'] = '100-continue'
                 # Do not set _out_remaining, we must only send data once we've
                 # read the response. Instead, save body size in
                 # _pending_requests so that it can be restored by
                 # read_response().
-                pending_body_size = body
+                pending_body_size = body.length
                 self._out_remaining = (method, url, WAITING_FOR_100c)
             else:
-                self._out_remaining = (method, url, body)
-            headers['Content-Length'] = str(body)
+                self._out_remaining = (method, url, body.length)
+            headers['Content-Length'] = str(body.length)
             body = None
         elif isinstance(body, (bytes, bytearray, memoryview)):
             headers['Content-Length'] = str(len(body))
         else:
-            raise TypeError('*body* must be None, int or bytes-like')
+            raise TypeError('*body* must be None, bytes-like or BodyFollowing')
 
         # Generate host header
         host = self.hostname

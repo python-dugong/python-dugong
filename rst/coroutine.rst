@@ -77,7 +77,7 @@ the following code::
 
     for name in files:
         cofun = conn.send_request('PUT', '/' + name, via_cofun=True,
-                                  body=os.path.getsize(name))
+                                  body=BodyFollowing(os.path.getsize(name)))
         for _ in cofun:
             read_response()
 
@@ -112,7 +112,7 @@ in the above code can be written as::
 
     for name in files:
         cofun = conn.send_request('PUT', '/' + name, via_cofun=True,
-                                  body=os.path.getsize(name))
+                                  body=BodyFollowing(os.path.getsize(name)))
         for _ in cofun:
             read_response()
 

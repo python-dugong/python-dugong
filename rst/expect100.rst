@@ -19,8 +19,8 @@ To use this mechanism with the httpio module, simply pass the
 and a second time to read the final response::
 
     conn = HTTPConnection(hostname)
-    conn.send_request('PUT', '/huge_file', body=os.path.getsize(filename),
-                      expect100=True)
+    conn.send_request('PUT', '/huge_file', expect100=True,
+                      body=BodyFollowing(os.path.getsize(filename)))
 
     (method, url, status, reason, header) = conn.read_response()
     if status != 100:
