@@ -22,16 +22,16 @@ In contrast to the standard library's http.client module, this class
 
 These features come for a price:
 
- - It is recommended to use this class only for idempotent HTTP
-   methods. This is because if a connection is terminated earlier than
-   expected (e.g. because of the server sending an unsupported reply) but
-   responses for multiple requests are pending, the client cannot determine
-   which requests have been processed.
+- It is recommended to use this class only for idempotent HTTP
+  methods. This is because if a connection is terminated earlier than
+  expected (e.g. because of the server sending an unsupported reply)
+  but responses for multiple requests are pending, the client cannot
+  determine which requests have been processed.
 
- - Only HTTP 1.1 connections are supported
+- Only HTTP 1.1 connections are supported
 
- - Responses and requests *must* specify a Content-Length header when
-   not using chunked encoding.
+- Responses and requests *must* specify a Content-Length header when
+  not using chunked encoding.
 
 If a server response doesn't fulfill the last two requirements, an
 `UnsupportedResponse` exception is raised. Typically, this means that
