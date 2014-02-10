@@ -199,6 +199,17 @@ class HTTPConnection:
         self._coroutine_active = False
 
 
+    # Implement bare-bones io.BaseIO interface, so that instances
+    # can be wrapped in TextIOWrapper if desired.
+    def writable(self):
+        return True
+    def readable(self):
+        return True
+    def seekable(self):
+        return False
+    def closed(self):
+        return False # because we automatically (re-)connect
+
     def _send(self, buf, partial=False):
         '''Send data over socket
 
@@ -742,7 +753,28 @@ class HTTPConnection:
             buf = self.read(BUFSIZE)
             if not buf:
                 break
-    
+
+    def readinto(self, buf):
+        '''Read response body data into *buf*
+
+        Return the number of bytes written or zero if the response body has been
+        read completely. Further attempts to read more data after zero has been
+        returned will result in `StateError` being raised.
+
+        *buf* must implement the memoryview protocol.
+        '''
+
+        # Generally, it would be better to implement read() in terms of
+        # readinto() rather than the other way around. However, since there is
+        # no self._sock_fh.readinto1() method, even a direct readinto()
+        # implementation would eventually have to copy the data from the
+        # _sock_fh.read1() call.
+
+        buf2 = self.read(len(buf))
+        len_ = len(buf2)
+        buf[:len_] = buf2
+        return len_
+            
     def read(self, len_=None):
         '''Read *len_* bytes of response body data
         

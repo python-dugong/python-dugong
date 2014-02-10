@@ -19,6 +19,7 @@ import time
 import ssl
 import re
 import os
+import _pyio as pyio
 import hashlib
 import threading
 import socketserver
@@ -152,6 +153,12 @@ def test_get_pipeline(conn):
 
     assert interrupted
 
+
+def test_read_text(conn):
+    conn.send_request('GET', '/send_%d_bytes' % len(DUMMY_DATA))
+    conn.read_response()
+    fh = pyio.TextIOWrapper(conn)
+    assert fh.read() == DUMMY_DATA.decode('utf8')
 
 def test_read_identity(conn):
     conn.send_request('GET', '/send_10_bytes')

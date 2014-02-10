@@ -12,6 +12,7 @@ Table of Contents
    coroutine.rst
    expect100.rst
    api.rst
+   issues.rst
    whatsnew.rst
 
 Indices and tables
