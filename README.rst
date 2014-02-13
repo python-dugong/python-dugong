@@ -6,8 +6,8 @@
    
 The Python Dugong module provides an API for communicating with HTTP
 1.1 servers, especially for implementing REST clients. It is an
-alternative to the standard library's `http.client` (formerly
-*httplib*) module. In contrast to `http.client`, dugong:
+alternative to the standard library's :mod:`http.client` (formerly
+*httplib*) module. In contrast to :mod:`http.client`, dugong:
 
 - allows you to send multiple requests right after each other without
   having to read the responses first.
@@ -17,10 +17,10 @@ alternative to the standard library's `http.client` (formerly
 - raises an exception instead of silently delivering partial data if the
   connection is closed before all data has been received.
 
-- raises one specific exception (`ConnectionClosed`) if the connection
-  has been closed (while `http.client` connection may raise any of
-  `BrokenPipeError`, `~http.client.BadStatusLine`,
-  `ConnectionAbortedError`, `ConnectionResetError`,
+- raises one specific exception (:exc:`ConnectionClosed`) if the connection
+  has been closed (while :mod:`http.client` connection may raise any of
+  `BrokenPipeError`, :exc:`~http.client.BadStatusLine`,
+  `ConnectionAbortedError`, :exc:`ConnectionResetError`,
   `~http.client.IncompleteRead` or simply return ``''`` on read)
 
 These features come for a price:
