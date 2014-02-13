@@ -19,9 +19,9 @@ alternative to the standard library's :mod:`http.client` (formerly
 
 - raises one specific exception (:exc:`ConnectionClosed`) if the connection
   has been closed (while :mod:`http.client` connection may raise any of
-  `BrokenPipeError`, :exc:`~http.client.BadStatusLine`,
-  `ConnectionAbortedError`, :exc:`ConnectionResetError`,
-  `~http.client.IncompleteRead` or simply return ``''`` on read)
+  :exc:`BrokenPipeError`, :exc:`~http.client.BadStatusLine`,
+  :exc:`ConnectionAbortedError`, :exc:`ConnectionResetError`,
+  :exc:`~http.client.IncompleteRead` or simply return ``''`` on read)
 
 These features come for a price:
 
@@ -37,9 +37,9 @@ These features come for a price:
   not using chunked encoding.
 
 If a server response doesn't fulfill the last two requirements, an
-`UnsupportedResponse` exception is raised. Typically, this means that
+:exc:`UnsupportedResponse` exception is raised. Typically, this means that
 synchronization with the server will be lost, so the connection needs to be
-reset by calling the `~HTTPConnection.close` method.
+reset by calling the :meth:`~HTTPConnection.close` method.
 
 All request and response headers are represented as strings, but must be
 encodable in latin1. Request and response body must be bytes.
