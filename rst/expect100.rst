@@ -1,7 +1,7 @@
 100-Continue Support
 ====================
 
-.. currentmodule:: httpio
+.. currentmodule:: dugong
 
 When having to transfer large amounts of request bodies to the server, you
 typically do not want to sent all the data over the network just to find out
@@ -13,7 +13,7 @@ reply with status ``100 Continue`` before sending the request body data. If
 the server instead responds with an error, the client can avoid pointless
 transmission of the request body.
 
-To use this mechanism with the httpio module, simply pass the
+To use this mechanism with the dugong module, simply pass the
 *expect100* parameter to `~HTTPConnection.send_request`, and call
 `~HTTPConnection.read_response` twice: once before sending body data,
 and a second time to read the final response::

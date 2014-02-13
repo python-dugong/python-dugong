@@ -1,5 +1,5 @@
 '''
-test_httpio.py - Unit tests for httpio.py - run with py.test
+test_dugong.py - Unit tests for dugong.py - run with py.test
 
 Copyright (c) Nikolaus Rath <Nikolaus@rath.org>
 
@@ -8,8 +8,8 @@ License Version 2.  The complete license text may be retrieved from
 http://hg.python.org/cpython/file/65f2c92ed079/LICENSE.
 '''
 
-from httpio import HTTPConnection, BUFSIZE, BodyFollowing, CaseInsensitiveDict
-import httpio
+from dugong import HTTPConnection, BUFSIZE, BodyFollowing, CaseInsensitiveDict
+import dugong
 from http.server import BaseHTTPRequestHandler, _quote_html
 from io import BytesIO
 from base64 import b64encode
@@ -181,7 +181,7 @@ def test_double_read(conn):
     assert resp.status == 200
     assert resp.length == 10
     assert resp.url == '/send_10_bytes'
-    with pytest.raises(httpio.StateError):
+    with pytest.raises(dugong.StateError):
         resp = conn.read_response()
     
 
@@ -205,19 +205,19 @@ def test_body_separate(conn):
     
 def test_write_toomuch(conn):
     conn.send_request('PUT', '/allgood', body=BodyFollowing(42))
-    with pytest.raises(httpio.ExcessBodyData):
+    with pytest.raises(dugong.ExcessBodyData):
         writeall(conn, DUMMY_DATA[:43])
     
 def test_write_toolittle(conn):
     conn.send_request('PUT', '/allgood', body=BodyFollowing(42))
     writeall(conn, DUMMY_DATA[:24])
-    with pytest.raises(httpio.StateError):
+    with pytest.raises(dugong.StateError):
         conn.send_request('GET', '/send_5_bytes')
         
 def test_write_toolittle2(conn):
     conn.send_request('PUT', '/allgood', body=BodyFollowing(42))
     writeall(conn, DUMMY_DATA[:24])
-    with pytest.raises(httpio.StateError):
+    with pytest.raises(dugong.StateError):
         conn.read_response()
 
 def test_write_toolittle3(conn):
@@ -228,7 +228,7 @@ def test_write_toolittle3(conn):
     assert resp.status == 200
     assert resp.url == '/send_10_bytes'
     assert readall(conn) == 10
-    with pytest.raises(httpio.StateError):
+    with pytest.raises(dugong.StateError):
         conn.read_response()
 
 def test_content_md5_sendfile(conn):
@@ -322,7 +322,7 @@ def test_co_sendfile2(conn):
     conn.send_request('PUT', '/allgood', body=BodyFollowing(2*len(DUMMY_DATA)-2))
     for _ in conn.co_sendfile(fh):
         pass
-    with pytest.raises(httpio.StateError):
+    with pytest.raises(dugong.StateError):
         conn.read_response()
     fh.seek(0)
     for _ in conn.co_sendfile(fh):
@@ -350,13 +350,13 @@ def test_100cont_2(conn):
     conn.send_request('PUT', '/fail_with_403', body=BodyFollowing(256),
                       expect100=True)
 
-    with pytest.raises(httpio.StateError):
+    with pytest.raises(dugong.StateError):
         conn.send_request('PUT', '/fail_with_403', body=BodyFollowing(256), expect100=True)
 
 def test_100cont_3(conn):
     conn.send_request('PUT', '/fail_with_403', body=BodyFollowing(256), expect100=True)
 
-    with pytest.raises(httpio.StateError):
+    with pytest.raises(dugong.StateError):
         conn.write(b'barf!')
 
         
@@ -373,7 +373,7 @@ def test_tunnel(http_server):
 
 def test_request_via_cofun(conn):
     cofun = conn.send_request('GET', '/send_10_bytes', via_cofun=True)
-    with pytest.raises(httpio.StateError):
+    with pytest.raises(dugong.StateError):
         conn.read_response()
 
     for _ in cofun:
@@ -390,7 +390,7 @@ def test_read_toomuch(conn):
     assert resp.status == 200
     assert resp.url == '/send_10_bytes'
     assert readall(conn) == 10
-    with pytest.raises(httpio.StateError):
+    with pytest.raises(dugong.StateError):
         conn.read(8)
 
         
@@ -400,7 +400,7 @@ def test_read_toolittle(conn):
     assert resp.status == 200
     assert resp.url == '/send_10_bytes'
     conn.read(8)
-    with pytest.raises(httpio.StateError):
+    with pytest.raises(dugong.StateError):
         resp = conn.read_response()
 
 

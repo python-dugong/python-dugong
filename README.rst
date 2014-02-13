@@ -1,10 +1,11 @@
 ==========================
- The Python httpio Module
+ The Python Dugong Module
 ==========================
 
-This module provides an alternative to the standard library's
-*http.client* module. In contrast to *http.client*,
-*httpio*:
+This module provides an API for communicating with HTTP 1.1 servers,
+especially for implementing REST clients. It is an alternative to the
+standard library's *http.client* (formerly *httplib*) module. In
+contrast to *http.client*, the *dugong* module:
 
 * allows you to send multiple requests right after each other without
   having to read the responses first.
@@ -29,7 +30,7 @@ Of course, these features come for a price:
 * Extra care has to be taken when using non-idempotent http
   methods. This is because if a connection is terminated earlier than
   expected (e.g. because of the server sending an unsupported reply)
-  but responses for multiple requests are pending, *httpio* cannot
+  but responses for multiple requests are pending, *dugong* cannot
   determine which requests have already been processed and which ones
   need to be resend.
 
@@ -50,13 +51,13 @@ Getting Help
 ============
 
 The documentation can be `read online`__ and is also included in the
-*doc/html* directory of the httpio tarball.
+*doc/html* directory of the dugong tarball.
 
 Please report any bugs on the `issue tracker`_. For discussion and
-questions, please subscribe to the `httpio mailing list`_.
+questions, please subscribe to the `dugong mailing list`_.
 
 
-.. __: http://pythonhosted.org/httpio/
-.. _httpio mailing list: https://groups.google.com/d/forum/python-httpio
-.. _issue tracker: https://bitbucket.org/nikratio/python-httpio/issues
+.. __: http://pythonhosted.org/dugong/
+.. _dugong mailing list: https://groups.google.com/d/forum/python-dugong
+.. _issue tracker: https://bitbucket.org/nikratio/python-dugong/issues
 .. _py.test: http://www.pytest.org/

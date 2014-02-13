@@ -21,31 +21,32 @@ def main():
     
     with open(os.path.join(basedir, 'README.rst'), 'r') as fh:
         long_desc = fh.read()
-    import httpio
+    import dugong
     
     setuptools.setup(
-          name='httpio',
+          name='dugong',
           zip_safe=True,
           long_description=long_desc,
-          version=httpio.__version__,
-          description='A http.client replacement supporting pipelining and Expect: 100-continue', 
+          version=dugong.__version__,
+          description=('A HTTP 1.1 client module designed especially for RESTful protocols. '
+                       'Supports pipelining and Expect: 100-continue'), 
           author='Nikolaus Rath',
           author_email='Nikolaus@rath.org',
           license='PSF',
           keywords=['http'],
           package_dir={'': '.'},
           packages=setuptools.find_packages(),
-          url='https://bitbucket.org/nikratio/python-httpio',
+          url='https://bitbucket.org/nikratio/python-dugong',
           classifiers=['Programming Language :: Python :: 3',
                        'Development Status :: 5 - Production/Stable',
                        'Intended Audience :: Developers',
                        'License :: OSI Approved :: Python Software Foundation License',
                        'Topic :: Internet :: WWW/HTTP',
                        'Topic :: Software Development :: Libraries :: Python Modules' ],
-          provides=['httpio'],
+          provides=['dugong'],
           command_options={ 'sdist': { 'formats': ('setup.py', 'bztar') } ,
-                            'build_sphinx': {'version': ('setup.py', httpio.__version__),
-                                             'release': ('setup.py', httpio.__version__) }},
+                            'build_sphinx': {'version': ('setup.py', dugong.__version__),
+                                             'release': ('setup.py', dugong.__version__) }},
      )
 
     

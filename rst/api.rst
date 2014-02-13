@@ -1,7 +1,7 @@
 API Reference
 =============
 
-.. currentmodule:: httpio
+.. currentmodule:: dugong
 
 Functions
 ---------

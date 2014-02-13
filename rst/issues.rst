@@ -1,7 +1,7 @@
 Known Issues
 ============
 
-.. currentmodule:: httpio
+.. currentmodule:: dugong
 
 * `HTTPConnection` instances can not be used as IO streams with the
   :mod:`io` classes. This is because they attempt to read and write

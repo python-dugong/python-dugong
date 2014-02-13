@@ -1,5 +1,5 @@
 ==========================
- The Python httpio Module
+ The Python Dugong Module
 ==========================
 
 Table of Contents

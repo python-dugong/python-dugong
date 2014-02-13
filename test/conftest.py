@@ -13,6 +13,6 @@ def pytest_configure(config):
     basedir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
     if not config.getoption('installed'):
         if (os.path.exists(os.path.join(basedir, 'setup.py')) and
-            os.path.exists(os.path.join(basedir, 'httpio', '__init__.py'))):
+            os.path.exists(os.path.join(basedir, 'dugong', '__init__.py'))):
             sys.path.insert(0, basedir)
 

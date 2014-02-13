@@ -1,5 +1,5 @@
 '''
-httpio.py - Python HTTP Client Module
+dugong.py - Python HTTP Client Module
 
 Copyright (C) Nikolaus Rath <Nikolaus@rath.org>
 

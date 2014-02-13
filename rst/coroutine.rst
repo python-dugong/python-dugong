@@ -1,7 +1,7 @@
 Coroutine Support
 =================
 
-.. currentmodule:: httpio
+.. currentmodule:: dugong
 
 The last point warrants slightly more explanation. When called with
 ``via_cofun=True``, the `~HTTPConnection.send_request` method does not

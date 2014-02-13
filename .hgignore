@@ -1,5 +1,5 @@
 syntax: regexp
-^httpio\.egg-info$
+^dugong\.egg-info$
 ^build$
 ^dist$
 ^doc$

@@ -1,7 +1,7 @@
 Introduction
 ============
 
-.. currentmodule:: httpio
+.. currentmodule:: dugong
 
 This class encapsulates a HTTP connection.
 

@@ -1,8 +1,10 @@
-.. currentmodule:: httpio
+.. currentmodule:: dugong
 
 Unreleased Changes
 ==================
 
+* Renamed module from *httpio* to *dugong*.  
+  
 * Introduced `BodyFollowing` class for use with *body* parameter of
   `~HTTPConnection.send_request` method.
 
