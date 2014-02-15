@@ -23,26 +23,11 @@ alternative to the standard library's :mod:`http.client` (formerly
   :exc:`ConnectionAbortedError`, :exc:`ConnectionResetError`,
   :exc:`~http.client.IncompleteRead` or simply return ``''`` on read)
 
-These features come for a price:
+- is not compatible with old HTTP 0.9 or 1.0 servers.
 
-- It is recommended to use this class only for idempotent HTTP
-  methods. This is because if a connection is terminated earlier than
-  expected (e.g. because of the server sending an unsupported reply)
-  but responses for multiple requests are pending, the client cannot
-  determine which requests have been processed.
-
-- Only HTTP 1.1 connections are supported
-
-- Responses and requests *must* specify a *Content-Length* header when
-  not using chunked encoding.
-
-If a server response doesn't fulfill the last two requirements, an
-:exc:`UnsupportedResponse` exception is raised. Typically, this means that
-synchronization with the server will be lost, so the connection needs to be
-reset by calling the :meth:`~HTTPConnection.close` method.
-
-All request and response headers are represented as strings, but must be
-encodable in latin1. Request and response body must be bytes.
+All request and response headers are represented as `str`, but must be
+encodable in latin1. Request and response body must be :term:`bytes-like
+objects <bytes-like object>` or binary streams.
 
 
 Installation

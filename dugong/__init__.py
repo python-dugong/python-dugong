@@ -132,8 +132,14 @@ class InvalidResponse(_GeneralError):
 
 class UnsupportedResponse(_GeneralError):
     '''
-    Raised if the server produced a response that we do not
-    support (e.g. with undefined length).
+    This exception is raised if the server produced a response that is not
+    supported. This should not happen for servers that are HTTP 1.1 compatible.
+    
+    If an `UnsupportedResponse` exception has been raised, this typically means
+    that synchronization with the server will be lost (i.e., dugong cannot
+    determine where the current response ends and the next response starts), so
+    the connection needs to be reset by calling the
+    :meth:`~HTTPConnection.close` method.
     '''
 
     msg = 'Server sent unsupported response'
