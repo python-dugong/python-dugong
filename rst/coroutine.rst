@@ -84,7 +84,8 @@ the following code::
         with open(name, 'rb') as fh:
             buf = b''
             while True:
-                (writeable, readable, _) = select((conn,), (conn,), ())
+                (writeable, readable, _) = select((conn.socket_fileno(),),
+                                                  (conn.socket_fileno(),), ())
                 if readable:
                     read_response()
 

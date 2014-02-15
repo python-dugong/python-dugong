@@ -27,6 +27,15 @@ Unreleased Changes
 
 * `HTTPConnection.read` now accepts `None` for the *len_* parameter.
 
+* `HTTPConnection` instances now support a bare-bones `io.IOBase`
+  interface so that they can be combined with `io.TextIOWrapper` to
+  read text response bodies.
+
+* Renamed :meth:`!HTTPConnection.fileno` to
+  `HTTPConnection.socket_fileno`, so that standard IO layers (like
+  `io.TextIOWrapper`) don't try to read from the underlying socket.
+
+  
 Release 1.0 (2013-07-13)
 ========================
 

@@ -207,8 +207,9 @@ class HTTPConnection:
         return True
     def seekable(self):
         return False
-    def closed(self):
-        return False # because we automatically (re-)connect
+
+    # because we automatically (re-)connect
+    closed = False
 
     def _send(self, buf, partial=False):
         '''Send data over socket
@@ -541,14 +542,21 @@ class HTTPConnection:
             self._coroutine_active = False
 
 
-    def fileno(self):
-        '''Return file no of underlying socket
+    def socket_fileno(self):
+        '''Return file descriptor of underlying socket
 
-        This allows HTTPConnection instances to be used in a `select`
-        call. Due to internal buffering, data may be available for
-        *reading* (but not writing) even if `select` indicates that
-        the socket is not currently readable.
+        This allows to use a `select` call to determine if the underlying socket
+        is ready for reading or writing. Note that, due to internal buffering,
+        data may be available for *reading* (but not writing) from the
+        `HTTPConnection` instance even if `select` indicates that the socket is
+        not currently readable.
+
+        The socket file descriptor may change over time if the connection needs
+        to be reestablished (which happens automatically when required).
         '''
+
+        if not self._sock():
+            self.connect()
 
         return self._sock.fileno()
 
