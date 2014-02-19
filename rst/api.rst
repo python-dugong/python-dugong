@@ -3,12 +3,6 @@ API Reference
 
 .. currentmodule:: dugong
 
-Functions
----------
-
-.. autofunction:: is_temp_network_error
-
-
 Classes
 -------
 
@@ -24,6 +18,14 @@ Classes
 .. autoclass:: CaseInsensitiveDict
    :members:
 
+.. autoclass:: PollNeeded
+   :members:
+
+Functions
+---------
+
+.. autofunction:: is_temp_network_error
+
    
 Exceptions
 ----------
@@ -34,16 +36,32 @@ Exceptions
 .. autoexception:: InvalidResponse
    :members:
       
-.. autoexception:: StateError
-   :members:
-      
 .. autoexception:: UnsupportedResponse
    :members:
       
 .. autoexception:: ExcessBodyData
    :members:
 
-   
+.. autoexception:: StateError
+   :members:
+      
+      
+Constants
+---------
+
+.. autodata:: MAX_LINE_SIZE
+
+.. autodata:: MAX_HEADER_SIZE
+
+              
+Thread Safety
+-------------
+
+Dugong is not generally threadsafe. However, simultaneous use of the
+same `HTTPConnection` instance by two threads is supported if once
+thread is restricted to sending requests, and the other thread
+restricted to reading responses.
+
 Avoiding Deadlocks
 ------------------
 
@@ -60,10 +78,8 @@ There are several ways to avoid this:
 - Do not send a new request before the last response has been read. This is
   the easiest solution, but it means that no HTTP pipelining can be used.
 
-- Use different threads for sending requests and receiving responses. This
-  may or may not be easy to do in your application.
+- Use different threads for sending requests and receiving responses. 
 
-- Use the *via_cofun* parameter of `~HTTPConnection.send_request` to
-  send requests, and a combination of `~HTTPConnection.write` with
-  *partial=True* and `select` to send request body data.
+- Use the coroutine based API (see :ref:`coroutine_pipelining` in the
+  tutorial).
 

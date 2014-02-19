@@ -28,8 +28,8 @@ def main():
           zip_safe=True,
           long_description=long_desc,
           version=dugong.__version__,
-          description=('A HTTP 1.1 client module designed especially for RESTful protocols. '
-                       'Supports pipelining and Expect: 100-continue'), 
+          description=('A HTTP 1.1 client module supporting asynchronous IO, pipelining '
+                       'and `Expect: 100-continue`. Designed for RESTful protocols.'), 
           author='Nikolaus Rath',
           author_email='Nikolaus@rath.org',
           license='PSF',

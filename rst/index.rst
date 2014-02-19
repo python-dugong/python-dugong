@@ -9,8 +9,7 @@ Table of Contents
    :maxdepth: 2
 
    intro.rst
-   coroutine.rst
-   expect100.rst
+   tutorial.rst
    api.rst
    issues.rst
    whatsnew.rst
