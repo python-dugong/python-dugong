@@ -927,9 +927,6 @@ class HTTPConnection:
             log.debug('using buffered data')
             buf[:pos] = rbuf.d[rbuf.b:rbuf.b+pos]
             rbuf.b += pos
-            if rbuf.b == rbuf.e:
-                rbuf.b = 0
-                rbuf.e = 0
             self._in_remaining -= pos
             
             # If we've read enough, return immediately
@@ -1090,6 +1087,13 @@ class HTTPConnection:
 
         log.debug('start')
         rbuf = self._rbuf
+
+        # If no capacity or empty, reset
+        # (this clause cover *both* cases)
+        if rbuf.d == rbuf.e:
+            rbuf.e = 0
+            rbuf.d = 0
+
         try:
             len_ = self._sock.recv_into(memoryview(rbuf.d)[rbuf.e:])
         except (socket.timeout, ssl.SSLWantReadError, BlockingIOError):
