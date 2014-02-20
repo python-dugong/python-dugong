@@ -1001,28 +1001,9 @@ class HTTPConnection:
         if self._in_remaining is None:
             res = 0 if buf else b''
         elif buf:
-            # Tiny optimization: try to also read final \r\n if there is space
-            # and put that into read buffer for _read_header. That way, we don't
-            # need an extra sock.recv call that may put data from the next chunk
-            # into the buffer (which means we have to do an extra copy when
-            # using readinto).
-            self._in_remaining += 2
             res = yield from self._co_readinto_id(buf)
-            if self._in_remaining == 0:
-                self._rbuf.d[self._rbuf.e:self._rbuf.e+2] = buf[res-2:res]
-                self._rbuf.e += 2
-                res -= 2
-            else:
-                self._in_remaining -= 2
         else:
-            # Similar trick
-            self._in_remaining += 2
             res = yield from self._co_read_id(len_)
-            if self._in_remaining == 0:
-                self._rbuf.d[self._rbuf.e:self._rbuf.e+2] = buf[res-2:res]
-                res[-2:] = b''
-            else:
-                self._in_remaining -= 2
 
         if not self._in_remaining:
             log.debug('chunk complete')
