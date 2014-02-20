@@ -219,7 +219,8 @@ def test_blocking_read(conn):
                 if not buf:
                     break
                 parts.append(buf)
-
+        assert not conn.response_pending()
+        
         assert _join(parts) == DUMMY_DATA[:120]*10
         if interrupted >= 8:
             break
@@ -260,6 +261,26 @@ def test_read_identity(conn):
     assert resp.length == 512
     assert conn.readall() == DUMMY_DATA[:512]
     assert not conn.response_pending()
+
+def test_exhaust_buffer(conn):
+    if conn.ssl_context:
+        pytest.skip('test does not have ssl support yet')
+        
+    conn._rbuf = dugong._Buffer(600)
+    conn.send_request('GET', '/send_512_bytes')
+    conn.read_response()
+    
+    # Test the case where the readbuffer is truncated and
+    # returned, instead of copied
+    conn._rbuf.compact()
+    for io_req in conn._co_fill_buffer(1):
+        io_req.poll()
+    assert conn._rbuf.b == 0
+    assert conn._rbuf.e > 0
+    buf = conn.read(600)
+    assert len(conn._rbuf.d) == 600
+    assert buf == DUMMY_DATA[:len(buf)]
+    assert conn.readall() == DUMMY_DATA[len(buf):512]
 
 def test_readinto_identity(conn):
     conn.send_request('GET', '/send_512_bytes')

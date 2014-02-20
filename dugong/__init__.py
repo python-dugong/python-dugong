@@ -274,13 +274,14 @@ class _Buffer:
     def exhaust(self):
         '''Return (and consume) all available data'''
 
-        log.debug('exhausting buffer')
         if self.b == 0:
+            log.debug('exhausting buffer (truncating)')
             # Return existing buffer after truncating it
             buf = self.d
-            buf[self.e:] = b''
             self.d = bytearray(len(self.d))
+            buf[self.e:] = b''
         else:
+            log.debug('exhausting buffer (copying)')
             buf = self.d[self.b:self.e]
             
         self.b = 0
@@ -878,6 +879,8 @@ class HTTPConnection:
         
         # Loop while we could return more data than we have buffered
         # and buffer is not full
+        log.debug('len(rbuf)=%d, len=%d, rbuf.e=%d, len(rbuf.d)=%d',
+                  len(rbuf), len_, rbuf.e, len(rbuf.d))
         while len(rbuf) < len_ and rbuf.e < len(rbuf.d):
             got_data = self._try_fill_buffer()
             if not got_data and not rbuf:
