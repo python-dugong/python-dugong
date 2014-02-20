@@ -282,6 +282,25 @@ def test_exhaust_buffer(conn):
     assert buf == DUMMY_DATA[:len(buf)]
     assert conn.readall() == DUMMY_DATA[len(buf):512]
 
+def test_full_buffer(conn):
+    if conn.ssl_context:
+        pytest.skip('test does not have ssl support yet')
+        
+    conn._rbuf = dugong._Buffer(100)
+    conn.send_request('GET', '/send_512_bytes')
+    conn.read_response()
+
+    buf = conn.read(101)
+    pos = len(buf)
+    assert buf == DUMMY_DATA[:pos]
+
+    # Make buffer empty, but without capacity for more
+    assert conn._rbuf.e == 0
+    conn._rbuf.e = len(conn._rbuf.d)
+    conn._rbuf.b = conn._rbuf.e
+    
+    assert conn.readall() == DUMMY_DATA[pos:512]
+    
 def test_readinto_identity(conn):
     conn.send_request('GET', '/send_512_bytes')
     resp = conn.read_response()
