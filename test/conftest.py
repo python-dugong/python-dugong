@@ -1,7 +1,11 @@
 import sys
 import os.path
 import logging
-        
+
+if sys.version_info < (3,3):
+    raise SystemExit('Python version is %d.%d.%d, but Dugong requires 3.3 or newer'
+                     % sys.version_info[:3])
+
 def pytest_addoption(parser):
     group = parser.getgroup("general")
     group._addoption("--installed", action="store_true", default=False,

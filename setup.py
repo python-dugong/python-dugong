@@ -9,6 +9,10 @@ except ImportError:
     raise SystemExit('Setuptools/distribute package not found. Please install from '
                      'https://pypi.python.org/pypi/distribute')
 
+if sys.version_info < (3,3):
+    raise SystemExit('Python version is %d.%d.%d, but Dugong requires 3.3 or newer'
+                     % sys.version_info[:3])
+
 basedir = os.path.abspath(os.path.dirname(sys.argv[0]))
 
 def main():
@@ -38,7 +42,6 @@ def main():
           packages=setuptools.find_packages(),
           url='https://bitbucket.org/nikratio/python-dugong',
           classifiers=['Programming Language :: Python :: 3',
-                       'Development Status :: 5 - Production/Stable',
                        'Intended Audience :: Developers',
                        'License :: OSI Approved :: Python Software Foundation License',
                        'Topic :: Internet :: WWW/HTTP',
