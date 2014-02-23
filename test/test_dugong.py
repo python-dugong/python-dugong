@@ -253,6 +253,14 @@ def test_read_text(conn):
     assert fh.read() == DUMMY_DATA.decode('utf8')
     assert not conn.response_pending()
 
+def test_read_text2(conn):
+    conn.send_request('GET', '/send_%d_bytes' % len(DUMMY_DATA))
+    conn.read_response()
+    fh = TextIOWrapper(conn)
+    
+    # This used to fail because TextIOWrapper can't deal with bytearrays
+    fh.read(42)
+    
 def test_read_identity(conn):
     conn.send_request('GET', '/send_512_bytes')
     resp = conn.read_response()
@@ -528,7 +536,9 @@ def test_mutable_read(conn):
 
     # Assert that buffer is full, but does not start at beginning
     assert conn._rbuf.b > 0
-    buf = conn.read(150)
+
+    # Need to avoid conn.read(), because it converts to bytes
+    buf = dugong.eval_coroutine(conn.co_read(150))
     pos = len(buf)
     assert buf == DUMMY_DATA[:pos]
     memoryview(buf)[:10] = b'\0' * 10
@@ -536,7 +546,7 @@ def test_mutable_read(conn):
     # Assert that buffer is empty
     assert conn._rbuf.b == 0
     assert conn._rbuf.e == 0
-    buf = conn.read(150)
+    buf = dugong.eval_coroutine(conn.co_read(150))
     assert buf == DUMMY_DATA[pos:pos+len(buf)]
     memoryview(buf)[:10] = b'\0' * 10
     pos += len(buf)

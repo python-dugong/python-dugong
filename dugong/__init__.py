@@ -795,7 +795,13 @@ class HTTPConnection:
         '''placeholder, will be replaced dynamically'''
         if len_ is None:
             return self.readall()
-        return eval_coroutine(self.co_read(len_))
+        buf = eval_coroutine(self.co_read(len_))
+
+        # Some modules like TextIOWrapper unfortunately rely on read()
+        # to return bytes, and do not accept bytearrays or memoryviews.
+        if not isinstance(buf, bytes):
+            buf = bytes(buf)
+        return buf
 
     def co_read(self, len_=None):
         '''Read up to *len_* bytes of response body data
@@ -828,7 +834,7 @@ class HTTPConnection:
             raise self._encoding
         else:
             raise RuntimeError('ooops, this should not be possible')
-
+        
     def readinto(self, buf):
         '''placeholder, will be replaced dynamically'''
         return eval_coroutine(self.co_readinto(buf))
