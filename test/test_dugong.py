@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 '''
 test_dugong.py - Unit tests for dugong.py - run with py.test
 
