@@ -27,3 +27,12 @@ def test_httpcat():
     
     with open('/dev/null', 'wb') as devnull:
         subprocess.check_call(cmdline, stdout=devnull)
+
+def test_extract_links():
+    cmdline = [sys.executable,
+              os.path.join(basename, 'examples', 'extract_links.py'),
+              'http://docs.oracle.com/javaee/7/firstcup/doc/creating-example.htm' ]
+    
+    with open('/dev/null', 'wb') as devnull:
+        subprocess.check_call(cmdline, stdout=devnull)
+        
