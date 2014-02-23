@@ -21,6 +21,8 @@ Classes
 .. autoclass:: PollNeeded
    :members:
 
+.. autoclass:: AioFuture
+               
 Functions
 ---------
 

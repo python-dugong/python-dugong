@@ -11,6 +11,7 @@ Table of Contents
    intro.rst
    tutorial.rst
    api.rst
+   coroutines.rst
    issues.rst
    whatsnew.rst
 

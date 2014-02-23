@@ -186,9 +186,11 @@ to retry)::
       else:
           break
           
-  
-Pipelining
-==========
+
+.. _pipelining:
+   
+Pipelining with Threads
+=======================
 
 Pipelining means sending multiple requests in succession, without
 waiting for the responses. First, let's consider how do **not** do it::
@@ -234,210 +236,37 @@ Another way is to use coroutines. This is explained in the next
 section.
 
 
-Non-blocking, Coroutine based API
-=================================
-
-Dugong fully supports non-blocking operation using coroutines (as a
-matter of fact, most of the methods introduced so far are implemented
-as thin, blocking wrappers around the correponding
-coroutines). Coroutines in Python are generators, and are obtained by
-calling generator functions. A coroutine can be resumed by passing it
-to the built-in `next` function, and the coroutine can pass the
-control flow back to the caller by :ref:`yielding <yieldexpr>`
-values. When the coroutine eventually terminates, the last call to
-`next` will raise `StopIteration` exception, whose *value* attribute
-holds the return value of the coroutine.
-
-The above paragraph is completely general and applies to any Python
-coroutine. What you need to know in order to really make use of a
-coroutine is when it will yield, what values it will yield, and what
-value it will eventually return. For coroutines returned by Dugong,
-the following rules apply:
-
-* A coroutine yields whenever an IO operation would block.
-
-* The yielded value is always a `PollNeeded` instance that contains
-  information about the IO request that would block.
-
-* The final return value is the "regular" result. 
-  
-All `HTTPConnection` methods that start with ``co_`` return
-coroutines. For example, the proper way to read a response body
-without blocking is (to keep the example simple, the first three
-method calls still use the simple, blocking API, and only the
-`~HTTPConnection.readall` call uses a coroutine)::
-
-  conn = HTTPConnection('somehost.com')
-  conn.send_request('GET', 'slow_stuff.html')
-  resp = conn.read_response()
-  assert resp.status == 200
-
-  crt = conn.co_readall() # crt = coroutine
-  try:
-      while True:
-          io_req = next(crt)
-          # No data ready for reading, need to wait for data 
-          # to arrive from server
-  except StopIteration as exc:
-      body = exc.value
-  
-As it is, this code fragment would simply do a busy-loop until the
-data has arrived from the server. In practice, this is not desired,
-and one probably wants to do some work while waiting for the data to
-arrive. But how do we know when there is data available? The necessary
-information is contained in the `~PollNeeded.fd` and
-`~PollNeeded.mask` attributes of the `io_req <PollNeeded>` object:
-they contain the file descriptor and type of I/O operation that we are
-waiting for. This information can then be used in e.g. a
-`~select.select` call. If we simply want to wait until the data is
-there, this could be done as follows::
-
-  from select import select, EPOLLIN
-  
-  # ...
-  
-  crt = conn.co_readall()
-  try:
-      while True:
-          io_req = next(crt)
-          
-          # We know we're waiting for data to arrive
-          assert io_req.mask == EPOLLIN
-          
-          # Wait for data to be be ready for reading on the given fd
-          select((io_req.fd,), (), ())
-  except StopIteration as exc:
-      body = exc.value
-   
-In general, the `~PollNeeded.mask` attribute is an :ref:`epoll
-<epoll-objects>` compatible event mask. In the above situation,
-however, we don't explicity test the mask since we know that the
-coroutine must be waiting for data to arrive.
-
 .. _coroutine_pipelining:
    
 Pipelining with Coroutines
---------------------------
+==========================
 
-Of course, the above example still doesn't provide any additional
-functionality over a simple `~HTTPConnection.readall` call -- we have
-replaced a single method call with a rather complicated loop. The
-advantage of coroutines comes from the fact that inside the loop you
-can now do other work -- for example, you can simultaenously send
-requests and read responses, which allows you to pipeline requests
-without using multiple threads, and without danger of deadlocking. For
-example, suppose you want to check a large number of URLs (stored in
-the *path_list* variable) for missing documents. This could be
-implemented as follows::
+Instead of using two threads to send requests and responses, you can
+also use two coroutines. A coroutine is essentially a function that
+can be suspended and resumed at specific points. Dugong coroutines
+suspend themself when they would have to wait for an I/O operation to
+complete. This makes them perfect for pipelining: we'll define one
+coroutine that sends requests, and a second one to read responses, and
+then execute them "interleaved": whenever we can't send another
+request, we try to read a response, and if we can't read a response,
+we try to send another request.
 
-    send_request_crt = None
-    read_response_crt = None
-    missing_documents = []
-    conn = HTTPConnection('somehost.com')
-    while path_list: # while there are requests to send
+The following example demonstrates how to do this to efficiently
+retrieve a large number of documents (stored in *url_list*):
 
-        if not send_request_crt:
-            # We are not sending any requests at the moment, so start a new
-            # send_request coroutine
-            path = path_list.pop()
-            send_request_crt = conn.co_send_request('HEAD', path)
+.. literalinclude:: ../examples/pipeline1.py
+   :start-after: start-example
+   :end-before: end-example
 
-        if not read_response_crt:
-            # We are not reading any responses at the moment, so start a new
-            # read_response coroutine.
-            read_response_crt = conn.co_read_response()
+Here we have used the :ref:`yield from expression <yieldexpr>` to
+integrate the coroutines returned by
+`~HTTPConnection.co_send_request`, `~HTTPConnection.co_read_response`,
+and `~HTTPConnection.co_readall` into two custom coroutines
+*send_requests* and *read_responses*. To schedule the coroutines, we
+use `AioFuture` to obtain `asyncio Futures <asyncio.Future>` for them,
+and then rely on the :mod:`asyncio` module to do the heavy lifting and
+switch execution between them at the right times.
 
-        try:
-            # Send request until we can't send any more data without blocking
-            io_req_1 = next(send_request_crt)
-        except StopIteration:
-            # Request has been sent completely
-            send_request_crt = None
-            continue
+For more details about this, take a look at :ref:`coroutines`, or the
+`asyncio documentation <asyncio>`.
 
-        try:
-            # Read response until we have to wait for more data from the server
-            io_req_2 = next(read_response_crt)
-        except StopIteration as exc:
-            # Response has been read completely
-            read_response_crt = None
-            resp = exc.value
-            if resp.status != 200:
-                missing_documents.append(resp.path)
-            # Since we sent a HEAD request, this is guaranteed to return b''
-            # without blocking
-            assert conn.read(10) == b''
-            continue
-
-        # We can't do any more work, wait until we're able to read or send
-        # data again.
-        assert io_req_1.mask == EPOLLOUT
-        assert io_req_2.mask == EPOLLIN
-        select((io_req_2.fd,), (io_req_1.fd,), ())
-
-    # All requests have been sent, now we just need to collect the
-    # remaining responses.
-    while conn.response_pending():
-        try:
-            io_req_2 = next(read_response_crt)
-        except StopIteration as exc:
-            resp = exc.value
-            if resp.status != 200:
-                missing_documents.append(resp.path)
-            read_response_crt = conn.co_read_response()
-        else:
-            io_req_2.poll()
-
-Note that in the last line we have used a convience method of
-`PollNeeded` instances: `~PollNeeded.poll` calls `~select.select` with
-the right parameters and blocks until the given IO request can be
-satisfied.
-
-The above code may look a bit intimidating, but it can be considerably
-simplified if we use the :ref:`yield from <yieldexpr>` expression. In
-fact, using ``yield from`` we can trivially extend the example to also
-save all the document bodies to disk::
-  
-    conn = HTTPConnection('somehost.com')
-    missing_documents = []
-
-    # This function returns a coroutine that sends all requests
-    def send_requests():
-        for path in path_list:
-            yield from conn.co_send_request('GET', path)
-
-    # This functions returns a coroutine that reads all responses
-    def read_responses():
-        for (i, path) in enumerate(path_list):
-            resp = yield from conn.co_read_response()
-            if resp.status != 200:
-                missing_documents.append(resp.path)
-            with open('doc_%i.dat' % i, 'wb') as fh:
-                buf = yield from conn.readall()
-                fh.write(buf)
-
-    send_request_crt = send_requests()
-    read_response_crt = read_responses()
-    while True:
-        # Send requests until we block
-        if send_request_crt:
-            try:
-                io_req_1 = next(send_request_crt)
-            except StopIteration:
-                # All requests sent
-                send_request_crt = None
-
-        # Read responses until we block
-        try:
-            io_req_2 = next(read_response_crt)
-        except StopIteration as exc:
-            # All responses read
-            break
-
-        # Wait for fds to become ready for I/O
-        assert io_req_1.mask == EPOLLOUT
-        assert io_req_2.mask == EPOLLIN
-        select((io_req_2.fd,), (io_req_1.fd,), ())
-
-
-        

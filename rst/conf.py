@@ -7,14 +7,14 @@ import os.path
 
 sys.path.append(os.path.abspath('..'))
 
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.intersphinx']
-intersphinx_mapping = {'python': ('http://docs.python.org/3/', None) }
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.intersphinx' ]
+intersphinx_mapping = {'python': ('http://docs.python.org/3.4/', None) }
 templates_path = ['_templates']
 source_suffix = '.rst'
 source_encoding = 'utf-8'
 master_doc = 'index'
 nitpicky = True
-project = u'dugong'
+project = u'Dugong'
 copyright = u'2013-2014, Nikolaus Rath'
 default_role = 'py:obj'
 primary_domain = 'py'

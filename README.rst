@@ -25,6 +25,9 @@ The Python Dugong module provides an API for communicating with HTTP
   `ConnectionAbortedError`, `ConnectionResetError`,
   `~http.client.IncompleteRead` or simply return ``''`` on read)
 
+- supports non-blocking, asynchronous operation and is compatible with
+  the asyncio_ module.
+  
 - is not compatible with old HTTP 0.9 or 1.0 servers.
 
 All request and response headers are represented as `str`, but must be
@@ -66,4 +69,5 @@ the other.
 .. _dugong mailing list: https://groups.google.com/d/forum/python-dugong
 .. _issue tracker: https://bitbucket.org/nikratio/python-dugong/issues
 .. _py.test: http://www.pytest.org/
+.. _asyncio: http://docs.python.org/3.4/library/asyncio.html
 

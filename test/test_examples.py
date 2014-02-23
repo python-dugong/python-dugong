@@ -36,3 +36,15 @@ def test_extract_links():
     with open('/dev/null', 'wb') as devnull:
         subprocess.check_call(cmdline, stdout=devnull)
         
+def test_pipeline1():
+    cmdline = [sys.executable,
+              os.path.join(basename, 'examples', 'pipeline1.py') ]
+
+    for x in ('preface.htm', 'intro.htm', 'java-ee.htm',
+              'creating-example.htm', 'next-steps.htm',
+              'creating-example001.htm'):
+        cmdline.append('http://docs.oracle.com/javaee/7/firstcup/doc/' + x)
+    
+    with open('/dev/null', 'wb') as devnull:
+        subprocess.check_call(cmdline, stdout=devnull)
+        
