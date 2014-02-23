@@ -36,7 +36,10 @@ Unreleased Changes
   `HTTPConnection.disconnect` to prevent confusion related to the
   ``closed`` attribute (which may be `True` if the connection is
   established, but there is no active response body).
-  
+
+* Repeatedly trying to read more response data after the response body
+  has been read completely no longer results in `StateError`  being
+  raised, but simply returns ``b''``.
   
 Release 1.0 (2013-07-13)
 ========================

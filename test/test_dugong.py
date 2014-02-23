@@ -260,6 +260,19 @@ def test_read_text2(conn):
     
     # This used to fail because TextIOWrapper can't deal with bytearrays
     fh.read(42)
+
+def test_read_text3(conn):
+    conn.send_request('GET', '/send_%d_bytes' % len(DUMMY_DATA))
+    conn.read_response()
+    fh = TextIOWrapper(conn)
+    
+    # This used to fail because TextIOWrapper tries to read from
+    # the underlying fh even after getting ''
+    while True:
+        if not fh.read(77):
+            break
+
+    assert not conn.response_pending()
     
 def test_read_identity(conn):
     conn.send_request('GET', '/send_512_bytes')
@@ -488,8 +501,7 @@ def test_read_toomuch(conn):
     assert resp.status == 200
     assert resp.path == '/send_10_bytes'
     assert conn.readall() == DUMMY_DATA[:10]
-    with pytest.raises(dugong.StateError):
-        conn.read(8)
+    assert conn.read(8) == b''
 
 def test_read_toolittle(conn):
     conn.send_request('GET', '/send_10_bytes')

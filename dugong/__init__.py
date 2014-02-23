@@ -353,12 +353,12 @@ class HTTPConnection:
     def seekable(self):
         return False
 
-    # We consider the stream closed if there is no active response
-    # from which body data could be read.
-    @property
-    def closed(self):
-        return self._in_remaining is None
-        
+    # One could argue that the stream should be considered closed if
+    # there is no active response. However, this breaks TextIOWrapper
+    # (which fails if the stream becomes closed even after b'' has
+    # been read), so we just declare to be always open.
+    closed = False
+    
     def connect(self):
         """Connect to the remote server
 
@@ -807,12 +807,9 @@ class HTTPConnection:
         '''Read up to *len_* bytes of response body data
 
         This method may return less than *len_* bytes, but will return ``b''`` only
-        if the response body has been read completely. Further attempts to read
-        more data after ``b''`` has been returned will result in `StateError` being
-        raised.
+        if the response body has been read completely. 
 
-        If *len_* is `None`, this method returns the entire response body. Further
-        calls will not return ``b''`` but directly raise `StateError`.
+        If *len_* is `None`, this method returns the entire response body. 
         '''
 
         log.debug('start (len=%d)', len_)
@@ -820,11 +817,8 @@ class HTTPConnection:
         if len_ is None:
             return (yield from self.co_readall())
 
-        if len_ == 0:
+        if len_ == 0 or self._in_remaining is None:
             return b''
-
-        if self._in_remaining is None:
-            raise StateError('No active response with body')
 
         if self._encoding is IDENTITY_ENCODING:
             return (yield from self._co_read_id(len_))
@@ -843,19 +837,15 @@ class HTTPConnection:
         '''Read response body data into *buf*
 
         Return the number of bytes written or zero if the response body has been
-        read completely. Further attempts to read more data after zero has been
-        returned will result in `StateError` being raised.
+        read completely. 
 
         *buf* must implement the memoryview protocol.
         '''
 
         log.debug('start (buflen=%d)', len(buf))
         
-        if len(buf) == 0:
+        if len(buf) == 0 or self._in_remaining is None:
             return 0
-
-        if self._in_remaining is None:
-            raise StateError('No active response with body')
 
         if self._encoding is IDENTITY_ENCODING:
             return (yield from self._co_readinto_id(buf))
@@ -1135,12 +1125,11 @@ class HTTPConnection:
         return eval_coroutine(self.co_readall())
 
     def co_readall(self):
-        '''Read and return complete response body
+        '''Read and return complete response body'''
 
-        After this function has returned, attemps to read more body data
-        for the same response will raise `StateError`.
-        '''
-
+        if self._in_remaining is None:
+            return b''
+        
         log.debug('start')
         parts = []
         while True:
@@ -1149,8 +1138,6 @@ class HTTPConnection:
             if not buf:
                 break
             parts.append(buf)
-
-            
         buf = _join(parts)
         log.debug('done (%d bytes)', len(buf))
         return buf
@@ -1160,12 +1147,11 @@ class HTTPConnection:
         return eval_coroutine(self.co_discard())
     
     def co_discard(self):
-        '''Read and discard current response body
+        '''Read and discard current response body'''
 
-        After this function has returned, attempts to read more body data
-        for the same response will raise `StateError`.
-        '''
-
+        if self._in_remaining is None:
+            return
+        
         log.debug('start')
         buf = memoryview(bytearray(BUFFER_SIZE))
         while True:
