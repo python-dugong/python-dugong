@@ -637,9 +637,6 @@ class HTTPConnection:
         Return a `HTTPResponse` instance containing information about response
         status, reason, and headers. The response body data must be retrieved
         separately (e.g. using `.read` or `.readall`).
-
-        Even for a response with empty body, one of the body reading method must
-        be called once before the next response can be processed.
         '''
 
         log.debug('start')
@@ -721,9 +718,8 @@ class HTTPConnection:
             100 <= status < 200 or method == 'HEAD'):
             log.debug('no content by RFC')
             body_length = 0
-            self._in_remaining = 0
-            # for these cases, there isn't even a zero chunk we could read
-            self._encoding = IDENTITY_ENCODING
+            self._in_remaining = None
+            self._pending_requests.popleft()
 
         # Chunked doesn't require content-length
         elif self._encoding is CHUNKED_ENCODING:
@@ -738,10 +734,14 @@ class HTTPConnection:
             self._in_remaining = 0
 
         else:
-            self._in_remaining = int(header['Content-Length'])
-            body_length = self._in_remaining
+            body_length = int(header['Content-Length'])
+            if body_length:
+                self._in_remaining = body_length
+            else:
+                self._in_remaining = None
+                self._pending_requests.popleft()
 
-        log.debug('done (in_remaining=%d)', self._in_remaining)
+        log.debug('done (in_remaining=%s)', self._in_remaining)
 
         return HTTPResponse(method, path, status, reason, header, body_length)
     

@@ -6,7 +6,9 @@ Unreleased Changes
 * Fixed a problem where data was not sent to the server if the syscall
   was interrupted by a signal.
   
-
+* It is no longer necessary to read from response body at least once
+  even if has zero length.
+  
 Release 2.0 (2014-02-23)
 ========================
 

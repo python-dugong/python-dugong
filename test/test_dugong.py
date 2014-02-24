@@ -514,6 +514,24 @@ def test_read_toolittle(conn):
     with pytest.raises(dugong.StateError):
         resp = conn.read_response()
 
+def test_empty_response(conn):
+    conn.send_request('HEAD', '/send_512_bytes')
+    resp = conn.read_response()
+    assert resp.status == 200
+    assert resp.path == '/send_512_bytes'
+    assert resp.length == 0
+
+    # Check that we can go to the next response without
+    # reading anything
+    assert not conn.response_pending()
+    conn.send_request('GET', '/send_512_bytes')
+    resp = conn.read_response()
+    assert resp.status == 200
+    assert resp.path == '/send_512_bytes'
+    assert resp.length == 512
+    assert conn.readall() == DUMMY_DATA[:512]
+    assert not conn.response_pending()
+
 def test_head(conn):
     conn.send_request('HEAD', '/send_10_bytes')
     resp = conn.read_response()
