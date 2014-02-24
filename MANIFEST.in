@@ -1,5 +1,6 @@
 include Changes.txt
 include README.rst
+include LICENSE
 graft doc/html
 graft examples
 graft rst
