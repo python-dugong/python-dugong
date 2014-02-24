@@ -1,7 +1,7 @@
 .. currentmodule:: dugong
 
-Unreleased Changes
-==================
+Release 2.0 (2014-02-23)
+========================
 
 * Renamed module from *httpio* to *dugong*.
 
