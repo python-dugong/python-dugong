@@ -554,6 +554,11 @@ class HTTPConnection:
         while True:
             try:
                 len_ = self._sock.send(buf)
+                # An SSL socket has the nasty habit of returning zero
+                # instead of raising an exception when in non-blocking
+                # mode.
+                if len_ == 0:
+                    raise BlockingIOError()
             except (socket.timeout, ssl.SSLWantWriteError, BlockingIOError):
                 log.debug('yielding')
                 yield PollNeeded(fd, EPOLLOUT)
@@ -567,9 +572,11 @@ class HTTPConnection:
                 else:
                     raise
             except InterruptedError:
+                log.debug('interrupted')
                 # According to send(2), this means that no data has been sent
                 # at all before the interruption, so we just try again.
-                pass
+                continue
+            
             log.debug('sent %d bytes', len_)
             buf = buf[len_:]
             if len(buf) == 0:
