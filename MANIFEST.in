@@ -1,0 +1,8 @@
+include Changes.txt
+include README.rst
+graft doc/html
+graft examples
+graft rst
+graft test
+exclude MANIFEST.in
+global-exclude *.pyc
