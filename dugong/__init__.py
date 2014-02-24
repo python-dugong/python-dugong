@@ -552,13 +552,12 @@ class HTTPConnection:
 
         fd = self._sock.fileno()
         while True:
-            if not select((), (fd,), (), 0)[1]:
+            try:
+                len_ = self._sock.send(buf)
+            except (socket.timeout, ssl.SSLWantWriteError, BlockingIOError):
                 log.debug('yielding')
                 yield PollNeeded(fd, EPOLLOUT)
                 continue
-
-            try:
-                len_ = self._sock.send(buf)
             except BrokenPipeError:
                 raise ConnectionClosed('found closed when trying to write')
             except OSError as exc:
