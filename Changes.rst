@@ -8,6 +8,12 @@ Unreleased Changes
   
 * It is no longer necessary to read from response body at least once
   even if has zero length.
+
+* `PollNeeded.poll` now uses `select.poll` instead of
+  `select.select`. This avoids a "filedescriptor out of range"
+  exception that may be raised by `select.select` when the
+  filedescriptor exceeds some system-specific value.
+  
   
 Release 2.0 (2014-02-23)
 ========================

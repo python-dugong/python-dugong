@@ -24,7 +24,8 @@ from collections.abc import MutableMapping, Mapping
 import email
 import email.policy
 from http.client import (HTTPS_PORT, HTTP_PORT, NO_CONTENT, NOT_MODIFIED)
-from select import select, EPOLLIN, EPOLLOUT
+from select import EPOLLIN, EPOLLOUT
+import select
 
 try:
     import asyncio
@@ -92,25 +93,27 @@ class PollNeeded(tuple):
     def poll(self, timeout=None):
         '''Wait until fd is ready for requested IO
 
-        This is a convenince function that uses `~select.select` to wait until
+        This is a convenince function that uses `~select.poll` to wait until
         `.fd` is ready for requested type of IO.
 
         If *timeout* is specified, return `False` if the timeout is exceeded
         without the file descriptor becoming ready.
         '''
 
-        read_fds = (self.fd,) if self.mask & EPOLLIN else ()
-        write_fds = (self.fd,) if self.mask & EPOLLOUT else ()
-
-        log.debug('calling select with %s, %s', read_fds, write_fds)
-        if timeout is None:
-            (read_fds, write_fds, _) =  select(read_fds, write_fds, ())
+        poll = select.poll()
+        if self.mask & EPOLLIN:
+            poll.register(self.fd, select.POLLIN)
+        if self.mask & EPOLLOUT:
+            poll.register(self.fd, select.POLLOUT)
+            
+        log.debug('calling poll')
+        if timeout:
+            return bool(poll.poll(timeout*1000)) # convert to ms
         else:
-            (read_fds, write_fds, _) =  select(read_fds, write_fds, (), timeout)
+            return bool(poll.poll())
+            
 
-        return bool(read_fds) or bool(write_fds)
 
-    
 class HTTPResponse:
     '''
     This class encapsulates information about HTTP response.  Instances of this
