@@ -41,7 +41,7 @@ Dugong requires Python 3.3 or newer.
 Installation
 ============
 
-As usual: download and extract the tarball, then run ::
+As usual: download the tarball from PyPi_, extract it, and run ::
 
   # python3 setup.py install [--user]
 
@@ -49,6 +49,8 @@ To run the self-tests, install `py.test`_ and run ::
 
   # py.test-3 test/
 
+
+.. _PyPi: https://pypi.python.org/pypi/dugong/#downloads
 
 Getting Help
 ============
