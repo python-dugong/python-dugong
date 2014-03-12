@@ -1,11 +1,11 @@
 .. currentmodule:: dugong
 
-Unreleased Changes
-==================
+Release 2.1 (2014-03-11)
+========================
 
 * Fixed a problem where data was not sent to the server if the syscall
   was interrupted by a signal.
-  
+
 * It is no longer necessary to read from response body at least once
   even if has zero length.
 
@@ -13,8 +13,8 @@ Unreleased Changes
   `select.select`. This avoids a "filedescriptor out of range"
   exception that may be raised by `select.select` when the
   filedescriptor exceeds some system-specific value.
-  
-  
+
+
 Release 2.0 (2014-02-23)
 ========================
 
