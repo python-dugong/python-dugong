@@ -33,7 +33,7 @@ except ImportError:
     asyncio = None
 
     
-__version__ = '2.1'
+__version__ = '2.2'
 
 log = logging.getLogger(__name__)
 
