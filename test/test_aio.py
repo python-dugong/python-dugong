@@ -14,12 +14,19 @@ if __name__ == '__main__':
     import pytest
     sys.exit(pytest.main([__file__] + sys.argv[1:]))
 
-
 import socket
 from select import EPOLLIN
-from dugong import PollNeeded, AioFuture
-import asyncio
 import logging
+from dugong import PollNeeded
+
+try:
+    import asyncio
+except ImportError:
+    import pytest
+    pytestmark = pytest.mark.skipif(True,
+                                    reason='asyncio module not available')
+else:
+    from dugong import AioFuture
 
 log = logging.getLogger(__name__)
 

@@ -17,7 +17,12 @@ if __name__ == '__main__':
 import subprocess
 import os
 import sys
-
+import pytest
+try:
+    import asyncio
+except ImportError:
+    asyncio = None
+    
 basename = os.path.join(os.path.dirname(__file__), '..')
 
 def test_httpcat():
@@ -35,7 +40,9 @@ def test_extract_links():
     
     with open('/dev/null', 'wb') as devnull:
         subprocess.check_call(cmdline, stdout=devnull)
-        
+
+@pytest.mark.skipif(asyncio is None,
+                    reason='asyncio module not available')
 def test_pipeline1():
     cmdline = [sys.executable,
               os.path.join(basename, 'examples', 'pipeline1.py') ]

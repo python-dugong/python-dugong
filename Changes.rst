@@ -1,5 +1,12 @@
 .. currentmodule:: dugong
 
+Unreleased Changes
+==================
+
+* Unittests requiring the `asyncio` module are now skipped if this
+  module is not available.
+  
+  
 Release 2.1 (2014-03-11)
 ========================
 
