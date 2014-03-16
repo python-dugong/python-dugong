@@ -26,6 +26,7 @@ import email.policy
 from http.client import (HTTPS_PORT, HTTP_PORT, NO_CONTENT, NOT_MODIFIED)
 from select import EPOLLIN, EPOLLOUT
 import select
+import sys
 
 try:
     import asyncio
@@ -1213,25 +1214,29 @@ def _extend_HTTPConnection_docstrings():
 
 _extend_HTTPConnection_docstrings()
 
-def _join(parts):
-    '''Join a sequence of byte-like objects
+if sys.version_info < (3,4,0):
+    def _join(parts):
+        '''Join a sequence of byte-like objects
 
-    This method is necessary because `bytes.join` does not work with
-    memoryviews.
-    '''
+        This method is necessary because `bytes.join` does not work with
+        memoryviews prior to Python 3.4.
+        '''
 
-    size = 0
-    for part in parts:
-        size += len(parts)
+        size = 0
+        for part in parts:
+            size += len(parts)
 
-    buf = bytearray(size)
-    i = 0
-    for part in parts:
-        len_ = len(part)
-        buf[i:i+len_] = part
-        i += len_
+        buf = bytearray(size)
+        i = 0
+        for part in parts:
+            len_ = len(part)
+            buf[i:i+len_] = part
+            i += len_
 
-    return buf
+        return buf
+else:
+    def _join(parts):
+        return b''.join(parts)
         
 def eval_coroutine(crt):
     '''Evaluate *crt* (polling as needed) and return its result'''
