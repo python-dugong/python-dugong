@@ -815,6 +815,7 @@ class HTTPConnection:
 
         # Some modules like TextIOWrapper unfortunately rely on read()
         # to return bytes, and do not accept bytearrays or memoryviews.
+        # cf. http://bugs.python.org/issue21057
         if not isinstance(buf, bytes):
             buf = bytes(buf)
         return buf
