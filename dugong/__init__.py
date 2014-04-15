@@ -845,6 +845,42 @@ class HTTPConnection:
             raise self._encoding
         else:
             raise RuntimeError('ooops, this should not be possible')
+
+    def read_raw(self, size):
+        '''Read *size* bytes of uninterpreted data
+
+        This method may be used even after `UnsupportedResponse` or
+        `InvalidResponse` has been raised. It reads raw data from the socket
+        without attempting to interpret it. This is probably only useful for
+        debugging purposes to take a look at the raw data received from the
+        server. This method blocks if no data is available, and returns ``b''``
+        if the connection has been closed.
+
+        Calling this method will break the internal state and switch the socket
+        to blocking operation. The connection has to be closed and reestablished
+        afterwards.
+
+        **Don't use this method unless you know exactly what you are doing**.
+        '''
+
+        self._sock.setblocking(True)
+        
+        buf = bytearray()
+        rbuf = self._rbuf
+        while len(buf) < size:
+            len_ = min(size - len(buf), len(rbuf))
+            if len_ < len(rbuf):
+                buf += rbuf.d[rbuf.b:rbuf.b+len_]
+                rbuf.b += len_
+            elif len_ == 0:
+                buf2 = self._sock.recv(size - len(buf))
+                if not buf2:
+                    break
+                buf += buf2
+            else:
+                buf += rbuf.exhaust()
+
+        return buf
         
     def readinto(self, buf):
         '''placeholder, will be replaced dynamically'''

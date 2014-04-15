@@ -1,5 +1,10 @@
 .. currentmodule:: dugong
 
+Unreleased Changes
+==================
+
+* Added `HTTPConnection.read_raw` method.
+
 Release 2.2 (2014-03-14)
 ========================
 

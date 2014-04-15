@@ -372,6 +372,15 @@ def test_double_read(conn):
     with pytest.raises(dugong.StateError):
         resp = conn.read_response()
 
+def test_read_raw(conn):
+    conn.send_request('GET', '/send_unsupported')
+    resp = conn.read_response()
+    assert resp.status == 200
+    with pytest.raises(dugong.UnsupportedResponse):
+        conn.readall()
+    assert conn.read_raw(512) == b'body data'
+    assert conn.read_raw(512) == b''
+        
 def test_write_toomuch(conn):
     conn.send_request('PUT', '/allgood', body=BodyFollowing(42))
     with pytest.raises(dugong.ExcessBodyData):
@@ -611,7 +620,16 @@ class MockRequestHandler(BaseHTTPRequestHandler):
         len_ = int(self.headers['Content-Length'])
         if len_:
             self.rfile.read(len_)
-        
+
+        hit = re.match(r'^/send_unsupported', self.path)
+        if hit:
+            self.send_response(200)
+            self.send_header("Content-Type", 'application/octet-stream')
+            self.end_headers()
+            self.wfile.write(b'body data')
+            self.wfile.close()
+            return
+            
         hit = re.match(r'^/send_([0-9]+)_bytes', self.path)
         if hit:
             len_ = int(hit.group(1))
