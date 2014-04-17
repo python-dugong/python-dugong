@@ -59,4 +59,6 @@ def test_aio_future():
 
     assert read_fut.done()
 
+    sock1.close()
+    sock2.close()
 
