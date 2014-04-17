@@ -613,6 +613,17 @@ class MockRequestHandler(BaseHTTPRequestHandler):
             self.end_headers()
             return True
 
+    def handle(self):
+        # Ignore exceptions resulting from the client closing
+        # the connection.
+        try:
+            return super().handle()
+        except ValueError as exc:
+            if exc.args ==  ('I/O operation on closed file.',):
+                pass
+            else:
+                raise
+
     def do_GET(self):
         if self.handle_errors():
             return
