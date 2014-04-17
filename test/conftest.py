@@ -1,11 +1,28 @@
 import sys
 import os.path
 import logging
+import pytest
 
 if sys.version_info < (3,3):
     raise SystemExit('Python version is %d.%d.%d, but Dugong requires 3.3 or newer'
                      % sys.version_info[:3])
 
+# Converted to autouse fixture below if capture is activated
+def check_test_output(request, capfd):
+    request.capfd = capfd
+    def raise_on_exception_in_out():
+        # Peek at captured output
+        (stdout, stderr) = capfd.readouterr()
+        sys.stdout.write(stdout)
+        sys.stderr.write(stderr)
+        
+        if ('exception' in stderr.lower()
+            or 'exception' in stdout.lower()):
+            raise AssertionError('Suspicious output to stderr')
+        
+    request.addfinalizer(raise_on_exception_in_out)
+
+    
 def pytest_addoption(parser):
     group = parser.getgroup("general")
     group._addoption("--installed", action="store_true", default=False,
@@ -16,6 +33,10 @@ def pytest_addoption(parser):
                      help="Activate debugging output.")
 
 def pytest_configure(config):
+    # Enable stdout and stderr analysis, unless output capture is disabled
+    if config.getoption('capture') != 'no':
+        global check_test_output
+        check_test_output = pytest.fixture(autouse=True)(check_test_output)
 
     # If we are running from the source directory, make sure that we load
     # modules from here
