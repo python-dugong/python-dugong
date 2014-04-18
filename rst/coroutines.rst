@@ -40,7 +40,7 @@ is an :ref:`epoll <epoll-objects>` compatible event mask. Therefore, a
 very simple way to wait for a coroutine to complete is to use a
 `~select.select` loop::
 
-  from select import select, EPOLLIN
+  from select import select, POLLIN
   
   # establish connection, send request, read response header
 
@@ -53,8 +53,8 @@ very simple way to wait for a coroutine to complete is to use a
 
           # Coroutine has returned because I/O is not ready,
           # prepare select call
-          read_fds = (io_req.fd,) if io_req.mask & EPOLLIN else ()
-          write_fds = (io_req.fd,) if io_req.mask & EPOLLOUT else ()
+          read_fds = (io_req.fd,) if io_req.mask & POLLIN else ()
+          write_fds = (io_req.fd,) if io_req.mask & POLLOUT else ()
           
           # Wait for I/O readiness
           select(read_fds, write_fds, ())
@@ -255,8 +255,8 @@ contents of the existing documents to disk. ::
             break
 
         # Wait for fds to become ready for I/O
-        assert io_req_1.mask == EPOLLOUT
-        assert io_req_2.mask == EPOLLIN
+        assert io_req_1.mask == POLLOUT
+        assert io_req_2.mask == POLLIN
         select((io_req_2.fd,), (io_req_1.fd,), ())
  
         

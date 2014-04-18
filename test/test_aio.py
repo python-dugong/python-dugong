@@ -15,7 +15,7 @@ if __name__ == '__main__':
     sys.exit(pytest.main([__file__] + sys.argv[1:]))
 
 import socket
-from select import EPOLLIN
+from select import POLLIN
 import logging
 from dugong import PollNeeded
 
@@ -33,7 +33,7 @@ log = logging.getLogger(__name__)
 def read(sock):
     for i in range(3):
         log.debug('yielding')
-        yield PollNeeded(sock.fileno(), EPOLLIN)
+        yield PollNeeded(sock.fileno(), POLLIN)
         log.debug('trying to read')
         buf = sock.recv(100)
         assert buf.decode() == 'text-%03d' % i

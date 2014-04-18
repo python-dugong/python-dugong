@@ -3,8 +3,17 @@
 Unreleased Changes
 ==================
 
+* Major version bump because of backwards incompatible changes.
+  
 * Added `HTTPConnection.read_raw` method.
 
+* The `PollNeeded` class now uses the `!select.POLLIN` and
+  `!select.POLLOUT` constants instead of `!select.EPOLLIN` and
+  `!select.EPOLLOUT` to signal what kind of I/O needs to be
+  performed. This makes dugong compatible with systems lacking epoll
+  (e.g. FreeBSD).
+
+  
 Release 2.2 (2014-03-14)
 ========================
 

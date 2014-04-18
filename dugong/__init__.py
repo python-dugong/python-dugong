@@ -24,7 +24,7 @@ from collections.abc import MutableMapping, Mapping
 import email
 import email.policy
 from http.client import (HTTPS_PORT, HTTP_PORT, NO_CONTENT, NOT_MODIFIED)
-from select import EPOLLIN, EPOLLOUT
+from select import POLLIN, POLLOUT
 import select
 import sys
 
@@ -34,7 +34,7 @@ except ImportError:
     asyncio = None
 
     
-__version__ = '2.2'
+__version__ = '3.0'
 
 log = logging.getLogger(__name__)
 
@@ -84,9 +84,9 @@ class PollNeeded(tuple):
         ready for IO of the specified type, operation will continue without
         blocking.
 
-        The type of IO is specified as a :ref:`epoll <epoll-objects>` compatible
-        event mask, i.e. a bitwise combination of `!select.EPOLLIN` and
-        `!select.EPOLLOUT`.
+        The type of IO is specified as a :ref:`poll <poll-objects>`
+        compatible event mask, i.e. a bitwise combination of `!select.POLLIN`
+        and `!select.POLLOUT`.
         '''
         
         return self[1]
@@ -102,10 +102,7 @@ class PollNeeded(tuple):
         '''
 
         poll = select.poll()
-        if self.mask & EPOLLIN:
-            poll.register(self.fd, select.POLLIN)
-        if self.mask & EPOLLOUT:
-            poll.register(self.fd, select.POLLOUT)
+        poll.register(self.fd, self.mask)
             
         log.debug('calling poll')
         if timeout:
@@ -565,7 +562,7 @@ class HTTPConnection:
                     raise BlockingIOError()
             except (socket.timeout, ssl.SSLWantWriteError, BlockingIOError):
                 log.debug('yielding')
-                yield PollNeeded(fd, EPOLLOUT)
+                yield PollNeeded(fd, POLLOUT)
                 continue
             except BrokenPipeError:
                 raise ConnectionClosed('found closed when trying to write')
@@ -939,7 +936,7 @@ class HTTPConnection:
             got_data = self._try_fill_buffer()
             if not got_data and not rbuf:
                 log.debug('buffer empty and nothing to read, yielding..')
-                yield PollNeeded(sock_fd, EPOLLIN)
+                yield PollNeeded(sock_fd, POLLIN)
             elif not got_data:
                 log.debug('nothing more to read')
                 break
@@ -1002,7 +999,7 @@ class HTTPConnection:
                     return pos
                 else:
                     log.debug('no data yet and nothing to read, yielding..')
-                    yield PollNeeded(sock_fd, EPOLLIN)
+                    yield PollNeeded(sock_fd, POLLIN)
                     continue
 
             if not read:
@@ -1116,7 +1113,7 @@ class HTTPConnection:
             # Refill buffer
             while not self._try_fill_buffer():
                 log.debug('need more data, yielding')
-                yield PollNeeded(sock_fd, EPOLLIN)
+                yield PollNeeded(sock_fd, POLLIN)
 
         log.debug('found substr at %d', idx)
         idx += len(substr)
@@ -1171,7 +1168,7 @@ class HTTPConnection:
             if len(rbuf.d) - rbuf.b < len_:
                 self._rbuf.compact()
             if not self._try_fill_buffer():
-                yield PollNeeded(sock_fd, EPOLLIN)
+                yield PollNeeded(sock_fd, POLLIN)
 
     def readall(self):
         '''placeholder, will be replaced dynamically'''
@@ -1429,10 +1426,10 @@ if asyncio:
                     # reader or writer? However, in practice this should not be
                     # the case: they would read or write unpredictable parts of
                     # the input/output.
-                    if io_req.mask & EPOLLIN:
+                    if io_req.mask & POLLIN:
                         self._loop.remove_reader(io_req.fd)
                         del self._read_fds[io_req.fd]
-                    if io_req.mask & EPOLLOUT:
+                    if io_req.mask & POLLOUT:
                         self._loop.remove_writer(io_req.fd)
                         del self._write_fds[io_req.fd]
                     self._io_req = None
@@ -1444,7 +1441,7 @@ if asyncio:
                                                'PollNeeded instance!'))
                 return
 
-            if io_req.mask & EPOLLIN:
+            if io_req.mask & POLLIN:
                 reader = self._read_fds.get(io_req.fd, None)
                 if reader is None:
                     log.debug('got poll needed, registering reader')
@@ -1457,7 +1454,7 @@ if asyncio:
                                          RuntimeError('There is already a read callback for this socket'))
                     return
                 
-            if io_req.mask & EPOLLOUT:
+            if io_req.mask & POLLOUT:
                 writer = self._read_fds.get(io_req.fd, None)
                 if writer is None:
                     log.debug('got poll needed, registering writer')
