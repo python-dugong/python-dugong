@@ -13,6 +13,10 @@ Unreleased Changes
   performed. This makes dugong compatible with systems lacking epoll
   (e.g. FreeBSD).
 
+* The unit tests now check if the host is reachable before trying to
+  run the example scripts. This avoids bogus test errors if
+  there is no internet connection or if the remote host is down.
+  (issue #7).
   
 Release 2.2 (2014-03-14)
 ========================

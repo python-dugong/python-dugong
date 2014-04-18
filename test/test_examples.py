@@ -18,6 +18,7 @@ import subprocess
 import os
 import sys
 import pytest
+from urllib.request import build_opener, ProxyHandler, URLError
 try:
     import asyncio
 except ImportError:
@@ -25,18 +26,37 @@ except ImportError:
     
 basename = os.path.join(os.path.dirname(__file__), '..')
 
+def check_url(url):
+    '''Skip test if *url* cannot be reached'''
+
+    # Examples ignore proxy settings, so should urllib
+    proxy_handler = ProxyHandler({})
+    opener = build_opener(proxy_handler)
+    
+    try:
+        resp = opener.open(url, None, 15)
+    except URLError:
+        pytest.skip('%s not reachable but required for testing' % url)
+
+    if resp.status != 200:
+        pytest.skip('%s not reachable but required for testing' % url)
+
+    resp.close()
+
 def test_httpcat():
+    url =  'http://docs.oracle.com/javaee/7/firstcup/doc/creating-example.htm'
+    check_url(url)
     cmdline = [sys.executable,
-              os.path.join(basename, 'examples', 'httpcat.py'),
-              'http://docs.oracle.com/javaee/7/firstcup/doc/creating-example.htm' ]
+               os.path.join(basename, 'examples', 'httpcat.py'), url ]
     
     with open('/dev/null', 'wb') as devnull:
         subprocess.check_call(cmdline, stdout=devnull)
 
 def test_extract_links():
+    url =  'http://docs.oracle.com/javaee/7/firstcup/doc/creating-example.htm'
+    check_url(url)
     cmdline = [sys.executable,
-              os.path.join(basename, 'examples', 'extract_links.py'),
-              'http://docs.oracle.com/javaee/7/firstcup/doc/creating-example.htm' ]
+              os.path.join(basename, 'examples', 'extract_links.py'), url ]
     
     with open('/dev/null', 'wb') as devnull:
         subprocess.check_call(cmdline, stdout=devnull)
@@ -50,7 +70,9 @@ def test_pipeline1():
     for x in ('preface.htm', 'intro.htm', 'java-ee.htm',
               'creating-example.htm', 'next-steps.htm',
               'creating-example001.htm'):
-        cmdline.append('http://docs.oracle.com/javaee/7/firstcup/doc/' + x)
+        url = 'http://docs.oracle.com/javaee/7/firstcup/doc/' + x
+        check_url(url)
+        cmdline.append(url)
     
     with open('/dev/null', 'wb') as devnull:
         subprocess.check_call(cmdline, stdout=devnull)
