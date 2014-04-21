@@ -1,10 +1,10 @@
 .. currentmodule:: dugong
 
-Unreleased Changes
-==================
+Release 3.0, (2014-04-20)
+=========================
 
 * Major version bump because of backwards incompatible changes.
-  
+
 * Added `HTTPConnection.read_raw` method.
 
 * The `PollNeeded` class now uses the `!select.POLLIN` and
