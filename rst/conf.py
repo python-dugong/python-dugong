@@ -8,7 +8,7 @@ import os.path
 sys.path.append(os.path.abspath('..'))
 
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.intersphinx' ]
-intersphinx_mapping = {'python': ('http://docs.python.org/3.4/', None) }
+intersphinx_mapping = {'python': ('http://docs.python.org/3/', None) }
 templates_path = ['_templates']
 source_suffix = '.rst'
 source_encoding = 'utf-8'
