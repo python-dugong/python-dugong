@@ -623,6 +623,8 @@ class MockRequestHandler(BaseHTTPRequestHandler):
                 pass
             else:
                 raise
+        except BrokenPipeError:
+            pass
 
     def do_GET(self):
         if self.handle_errors():
