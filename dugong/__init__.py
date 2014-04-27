@@ -33,7 +33,7 @@ try:
 except ImportError:
     asyncio = None
 
-    
+
 __version__ = '3.0'
 
 log = logging.getLogger(__name__)
@@ -63,16 +63,16 @@ class PollNeeded(tuple):
     This class encapsulates the requirements for a IO operation to continue.
     `PollNeeded` instances are typically yielded by coroutines.
     '''
-    
+
     __slots__ = ()
-    
+
     def __new__(self, fd, mask):
         return tuple.__new__(self, (fd, mask))
 
     @property
     def fd(self):
         '''File descriptor that the IO operation depends on'''
-        
+
         return self[0]
 
     @property
@@ -88,7 +88,7 @@ class PollNeeded(tuple):
         compatible event mask, i.e. a bitwise combination of `!select.POLLIN`
         and `!select.POLLOUT`.
         '''
-        
+
         return self[1]
 
     def poll(self, timeout=None):
@@ -103,13 +103,13 @@ class PollNeeded(tuple):
 
         poll = select.poll()
         poll.register(self.fd, self.mask)
-            
+
         log.debug('calling poll')
         if timeout:
             return bool(poll.poll(timeout*1000)) # convert to ms
         else:
             return bool(poll.poll())
-            
+
 
 
 class HTTPResponse:
@@ -159,15 +159,15 @@ class BodyFollowing:
         #: to use chunked encoding.
         self.length = length
 
-        
+
 class _ChunkTooLong(Exception):
     '''
     Raised by `_co_readstr_until` if the requested end pattern
     cannot be found within the specified byte limit.
     '''
-    
+
     pass
-    
+
 
 class _GeneralError(Exception):
     msg = 'General HTTP Error'
@@ -197,7 +197,7 @@ class ExcessBodyData(_GeneralError):
 
     msg = 'Cannot send larger request body than announced'
 
-    
+
 class InvalidResponse(_GeneralError):
     '''
     Raised if the server produced an invalid response (i.e, something
@@ -229,13 +229,13 @@ class ConnectionClosed(_GeneralError):
 
     msg = 'connection closed unexpectedly'
 
-    
+
 class _Buffer:
     '''
     This class represents a buffer with a fixed size, but varying
     fill level.
     '''
-    
+
     __slots__ = ('d', 'b', 'e')
 
     def __init__(self, size):
@@ -256,7 +256,7 @@ class _Buffer:
 
     def clear(self):
         '''Forget all buffered data'''
-        
+
         self.b = 0
         self.e = 0
 
@@ -266,7 +266,7 @@ class _Buffer:
         If part of the buffer data has been consumed, the unconsumed part is
         copied to the beginning of the buffer to maximize the available space.
         '''
-        
+
         if self.b == 0:
             return
 
@@ -290,13 +290,13 @@ class _Buffer:
         else:
             log.debug('exhausting buffer (copying)')
             buf = self.d[self.b:self.e]
-            
+
         self.b = 0
         self.e = 0
-        
+
         return buf
 
-    
+
 class HTTPConnection:
     '''
     This class encapsulates a HTTP connection. Methods whose name begin with
@@ -365,7 +365,7 @@ class HTTPConnection:
     # (which fails if the stream becomes closed even after b'' has
     # been read), so we just declare to be always open.
     closed = False
-    
+
     def connect(self):
         """Connect to the remote server
 
@@ -373,7 +373,7 @@ class HTTPConnection:
         """
 
         log.debug('start')
-        
+
         if self.proxy:
             log.debug('connecting to %s', self.proxy)
             self._sock = socket.create_connection(self.proxy)
@@ -400,12 +400,12 @@ class HTTPConnection:
         self._pending_requests = deque()
 
         log.debug('done')
-        
+
     def _co_tunnel(self):
         '''Set up CONNECT tunnel to destination server'''
 
         log.debug('start connecting to %s:%d', self.hostname, self.port)
-        
+
         yield from self._co_send(("CONNECT %s:%d HTTP/1.0\r\n\r\n"
                                   % (self.hostname, self.port)).encode('latin1'))
 
@@ -444,12 +444,12 @@ class HTTPConnection:
             if not self._sock:
                 self.connect()
             return self._sock.cipher()
-        
+
     def send_request(self, method, path, headers=None, body=None, expect100=False):
         '''placeholder, will be replaced dynamically'''
         eval_coroutine(self.co_send_request(method, path, headers=headers,
                                             body=body, expect100=expect100))
-        
+
     def co_send_request(self, method, path, headers=None, body=None, expect100=False):
         '''Send a new HTTP request to the server
 
@@ -470,7 +470,7 @@ class HTTPConnection:
         '''
 
         log.debug('start')
-        
+
         if expect100 and not isinstance(body, BodyFollowing):
             raise ValueError('expect100 only allowed for separate body')
 
@@ -547,7 +547,7 @@ class HTTPConnection:
         '''Send *buf* to server'''
 
         log.debug('trying to send %d bytes', len(buf))
-        
+
         if not isinstance(buf, memoryview):
             buf = memoryview(buf)
 
@@ -577,13 +577,13 @@ class HTTPConnection:
                 # According to send(2), this means that no data has been sent
                 # at all before the interruption, so we just try again.
                 continue
-            
+
             log.debug('sent %d bytes', len_)
             buf = buf[len_:]
             if len(buf) == 0:
                 log.debug('done')
                 return
-            
+
     def write(self, buf):
         '''placeholder, will be replaced dynamically'''
         eval_coroutine(self.co_write(buf))
@@ -596,7 +596,7 @@ class HTTPConnection:
         '''
 
         log.debug('start (len=%d)', len(buf))
-        
+
         if not self._out_remaining:
             raise StateError('No active request with pending body data')
 
@@ -641,7 +641,7 @@ class HTTPConnection:
         '''
 
         log.debug('start')
-        
+
         if len(self._pending_requests) == 0:
             raise StateError('No pending requests')
 
@@ -654,7 +654,7 @@ class HTTPConnection:
         while True:
             (status, reason) = yield from self._co_read_status()
             log.debug('got %03d %s', status, reason)
-            
+
             hstring = yield from self._co_read_header()
             header = email.message_from_string(hstring, policy=email.policy.HTTP)
 
@@ -745,7 +745,7 @@ class HTTPConnection:
         log.debug('done (in_remaining=%s)', self._in_remaining)
 
         return HTTPResponse(method, path, status, reason, header, body_length)
-    
+
     def _co_read_status(self):
         '''Read response line'''
 
@@ -780,13 +780,13 @@ class HTTPConnection:
 
         log.debug('done')
         return (status, reason.strip())
-    
+
     def _co_read_header(self):
         '''Read response header'''
 
         log.debug('start')
 
-        # Peek into buffer. If the first characters are \r\n, then the header 
+        # Peek into buffer. If the first characters are \r\n, then the header
         # is empty (so our search for \r\n\r\n would fail)
         rbuf = self._rbuf
         if len(rbuf) < 2:
@@ -795,7 +795,7 @@ class HTTPConnection:
             log.debug('done (empty header)')
             rbuf.b += 2
             return ''
-            
+
         try:
             hstring = yield from self._co_readstr_until(b'\r\n\r\n', MAX_HEADER_SIZE)
         except _ChunkTooLong:
@@ -821,13 +821,13 @@ class HTTPConnection:
         '''Read up to *len_* bytes of response body data
 
         This method may return less than *len_* bytes, but will return ``b''`` only
-        if the response body has been read completely. 
+        if the response body has been read completely.
 
-        If *len_* is `None`, this method returns the entire response body. 
+        If *len_* is `None`, this method returns the entire response body.
         '''
 
         log.debug('start (len=%d)', len_)
-        
+
         if len_ is None:
             return (yield from self.co_readall())
 
@@ -861,7 +861,7 @@ class HTTPConnection:
         '''
 
         self._sock.setblocking(True)
-        
+
         buf = bytearray()
         rbuf = self._rbuf
         while len(buf) < size:
@@ -878,22 +878,22 @@ class HTTPConnection:
                 buf += rbuf.exhaust()
 
         return buf
-        
+
     def readinto(self, buf):
         '''placeholder, will be replaced dynamically'''
         return eval_coroutine(self.co_readinto(buf))
- 
+
     def co_readinto(self, buf):
         '''Read response body data into *buf*
 
         Return the number of bytes written or zero if the response body has been
-        read completely. 
+        read completely.
 
         *buf* must implement the memoryview protocol.
         '''
 
         log.debug('start (buflen=%d)', len(buf))
-        
+
         if len(buf) == 0 or self._in_remaining is None:
             return 0
 
@@ -911,7 +911,7 @@ class HTTPConnection:
 
         log.debug('start (len=%d)', len_)
         assert self._in_remaining is not None
-        
+
         if not self._in_remaining:
             # Body retrieved completely, clean up
             self._in_remaining = None
@@ -929,7 +929,7 @@ class HTTPConnection:
         if rbuf.b == rbuf.e:
             rbuf.b = 0
             rbuf.e = 0
-            
+
         # Loop while we could return more data than we have buffered
         # and buffer is not full
         while len(rbuf) < len_ and rbuf.e < len(rbuf.d):
@@ -957,7 +957,7 @@ class HTTPConnection:
         '''Read response body into *buf* assuming identity encoding'''
 
         log.debug('start (buflen=%d)', len(buf))
-        
+
         assert self._in_remaining is not None
         if not self._in_remaining:
             # Body retrieved completely, clean up
@@ -979,7 +979,7 @@ class HTTPConnection:
             buf[:pos] = rbuf.d[rbuf.b:rbuf.b+pos]
             rbuf.b += pos
             self._in_remaining -= pos
-            
+
             # If we've read enough, return immediately
             if pos == len_:
                 log.debug('done (got all we need, %d bytes)', pos)
@@ -1004,7 +1004,7 @@ class HTTPConnection:
 
             if not read:
                 raise ConnectionClosed('connection closed unexpectedly')
-            
+
             log.debug('got %d bytes', read)
             self._in_remaining -= read
             pos += read
@@ -1027,7 +1027,7 @@ class HTTPConnection:
         assert (len_ is None) != (buf is None)
         assert bool(len_) or bool(buf)
         assert self._in_remaining is not None
-        
+
         if self._in_remaining == 0:
             log.debug('starting next chunk')
             try:
@@ -1062,7 +1062,7 @@ class HTTPConnection:
 
         log.debug('done')
         return res
-    
+
     def _co_readstr_until(self, substr, maxsize):
         '''Read from server until *substr*, and decode to latin1
 
@@ -1074,14 +1074,14 @@ class HTTPConnection:
             raise TypeError('*substr* must be bytes-like')
 
         log.debug('reading until %s', substr)
-        
+
         sock_fd = self._sock.fileno()
         rbuf = self._rbuf
         sub_len = len(substr)
 
         # Make sure that substr cannot be split over more than one part
         assert len(rbuf.d) > sub_len
-        
+
         parts = []
         while True:
             # substr may be split between last part and current buffer
@@ -1093,11 +1093,11 @@ class HTTPConnection:
                 if idx >= 0:
                     idx -= sub_len
                     break
-                
+
             #log.debug('rbuf is: %s', rbuf.d[rbuf.b:min(rbuf.e, rbuf.b+512)])
             stop = min(rbuf.e, rbuf.b + maxsize)
             idx = rbuf.d.find(substr, rbuf.b, stop)
-            
+
             if idx >= 0: # found
                 break
             if stop != rbuf.e:
@@ -1123,7 +1123,7 @@ class HTTPConnection:
         if parts:
             parts.append(buf)
             buf = _join(parts)
-            
+
         try:
             return buf.decode('latin1')
         except UnicodeDecodeError:
@@ -1179,7 +1179,7 @@ class HTTPConnection:
 
         if self._in_remaining is None:
             return b''
-        
+
         log.debug('start')
         parts = []
         while True:
@@ -1195,13 +1195,13 @@ class HTTPConnection:
     def discard(self):
         '''placeholder, will be replaced dynamically'''
         return eval_coroutine(self.co_discard())
-    
+
     def co_discard(self):
         '''Read and discard current response body'''
 
         if self._in_remaining is None:
             return
-        
+
         log.debug('start')
         buf = memoryview(bytearray(BUFFER_SIZE))
         while True:
@@ -1210,7 +1210,7 @@ class HTTPConnection:
                 break
             log.debug('discarding %d bytes', len_)
         log.debug('done')
-        
+
     def disconnect(self):
         '''Close HTTP connection'''
 
@@ -1271,7 +1271,7 @@ if sys.version_info < (3,4,0):
 else:
     def _join(parts):
         return b''.join(parts)
-        
+
 def eval_coroutine(crt):
     '''Evaluate *crt* (polling as needed) and return its result'''
 
@@ -1376,7 +1376,7 @@ if asyncio:
         '''
         This class wraps a coroutine that yields `PollNeeded` instances
         into an `asyncio` compatible `~asyncio.Future`.
-        
+
         This is done by registering a callback with the event loop that resumes
         the coroutine when the requested IO is available.
         '''
@@ -1384,11 +1384,11 @@ if asyncio:
         #: Set of fds that that any `_Future` instance currently has
         #: read callbacks registered for (class attribute)
         _read_fds = dict()
-        
+
         #: Set of fds that that any `_Future` instance currently has
         #: write callbacks registered for (class attribute)
         _write_fds = dict()
-        
+
         def __init__(self, crt, loop=None):
             super().__init__(loop=loop)
             self._crt = crt
@@ -1398,7 +1398,7 @@ if asyncio:
             self._io_req = None
 
             self._loop.call_soon(self._resume_crt)
-            
+
         def _resume_crt(self, exc=None):
             '''Resume coroutine
 
@@ -1406,7 +1406,7 @@ if asyncio:
             call when requested io is available. If *exc* is specified, raise
             *exc* in coroutine.
             '''
-            
+
             log.debug('start')
             try:
                 if exc is not None:
@@ -1436,7 +1436,7 @@ if asyncio:
                 return
 
             if not isinstance(io_req, PollNeeded):
-                self._loop.call_soon(self._resume_crt, 
+                self._loop.call_soon(self._resume_crt,
                                      TypeError('Coroutine passed to asyncio_future did not yield '
                                                'PollNeeded instance!'))
                 return
@@ -1453,7 +1453,7 @@ if asyncio:
                     self._loop.call_soon(self._resume_crt,
                                          RuntimeError('There is already a read callback for this socket'))
                     return
-                
+
             if io_req.mask & POLLOUT:
                 writer = self._read_fds.get(io_req.fd, None)
                 if writer is None:
@@ -1466,5 +1466,5 @@ if asyncio:
                     self._loop.call_soon(self._resume_crt,
                                          RuntimeError('There is already a write callback for this socket'))
                     return
-                
+
             self._io_req = io_req

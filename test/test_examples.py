@@ -23,7 +23,7 @@ try:
     import asyncio
 except ImportError:
     asyncio = None
-    
+
 basename = os.path.join(os.path.dirname(__file__), '..')
 
 def check_url(url):
@@ -32,7 +32,7 @@ def check_url(url):
     # Examples ignore proxy settings, so should urllib
     proxy_handler = ProxyHandler({})
     opener = build_opener(proxy_handler)
-    
+
     try:
         resp = opener.open(url, None, 15)
     except URLError:
@@ -48,7 +48,7 @@ def test_httpcat():
     check_url(url)
     cmdline = [sys.executable,
                os.path.join(basename, 'examples', 'httpcat.py'), url ]
-    
+
     with open('/dev/null', 'wb') as devnull:
         subprocess.check_call(cmdline, stdout=devnull)
 
@@ -57,7 +57,7 @@ def test_extract_links():
     check_url(url)
     cmdline = [sys.executable,
               os.path.join(basename, 'examples', 'extract_links.py'), url ]
-    
+
     with open('/dev/null', 'wb') as devnull:
         subprocess.check_call(cmdline, stdout=devnull)
 
@@ -73,7 +73,6 @@ def test_pipeline1():
         url = 'http://docs.oracle.com/javaee/7/firstcup/doc/' + x
         check_url(url)
         cmdline.append(url)
-    
+
     with open('/dev/null', 'wb') as devnull:
         subprocess.check_call(cmdline, stdout=devnull)
-        

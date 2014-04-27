@@ -18,7 +18,7 @@ if __name__ == '__main__':
     #cProfile.run('pytest.main([%r] + sys.argv[1:])' % __file__,
     #             'cProfile.dat')
     #sys.exit()
-    
+
     sys.exit(pytest.main([__file__] + sys.argv[1:]))
 
 from dugong import HTTPConnection, BodyFollowing, CaseInsensitiveDict, _join
@@ -116,7 +116,7 @@ def check_http_connection():
 
 def test_connect_ssl():
     check_http_connection()
-    
+
     ssl_context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
     ssl_context.options |= ssl.OP_NO_SSLv2
     ssl_context.verify_mode = ssl.CERT_REQUIRED
@@ -137,7 +137,7 @@ def test_invalid_ssl():
     context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
     context.options |= ssl.OP_NO_SSLv2
     context.verify_mode = ssl.CERT_REQUIRED
-    
+
     conn = HTTPConnection(SSL_TEST_HOST, ssl_context=context)
     with pytest.raises(ssl.SSLError):
         conn.send_request('GET', '/')
@@ -149,7 +149,7 @@ def test_get_pipeline(conn):
     # a few requests
 
     paths = [ '/send_120_bytes' for _ in range(3) ]
-    
+
     # Send requests
     for path in paths:
         crt = conn.co_send_request('GET', path)
@@ -167,7 +167,7 @@ def test_get_pipeline(conn):
 def test_ssl_info(conn):
     conn.get_ssl_cipher()
     conn.get_ssl_peercert()
-    
+
 def test_blocking_send(conn):
     # Send requests until we block because all TCP buffers are full
 
@@ -198,7 +198,7 @@ def test_blocking_send(conn):
     resp = conn.read_response()
     assert resp.status == 200
     conn.discard()
-        
+
 def test_blocking_read(conn):
     delay = 10
     while True:
@@ -221,7 +221,7 @@ def test_blocking_read(conn):
                     break
                 parts.append(buf)
         assert not conn.response_pending()
-        
+
         assert _join(parts) == DUMMY_DATA[:120]*10
         if interrupted >= 8:
             break
@@ -246,7 +246,7 @@ def test_discard_chunked(conn):
     assert resp.length is None
     conn.discard()
     assert not conn.response_pending()
-    
+
 def test_read_text(conn):
     conn.send_request('GET', '/send_%d_bytes' % len(DUMMY_DATA))
     conn.read_response()
@@ -258,7 +258,7 @@ def test_read_text2(conn):
     conn.send_request('GET', '/send_%d_bytes' % len(DUMMY_DATA))
     conn.read_response()
     fh = TextIOWrapper(conn)
-    
+
     # This used to fail because TextIOWrapper can't deal with bytearrays
     fh.read(42)
 
@@ -266,7 +266,7 @@ def test_read_text3(conn):
     conn.send_request('GET', '/send_%d_bytes' % len(DUMMY_DATA))
     conn.read_response()
     fh = TextIOWrapper(conn)
-    
+
     # This used to fail because TextIOWrapper tries to read from
     # the underlying fh even after getting ''
     while True:
@@ -274,7 +274,7 @@ def test_read_text3(conn):
             break
 
     assert not conn.response_pending()
-    
+
 def test_read_identity(conn):
     conn.send_request('GET', '/send_512_bytes')
     resp = conn.read_response()
@@ -287,11 +287,11 @@ def test_read_identity(conn):
 def test_exhaust_buffer(conn):
     if conn.ssl_context:
         pytest.skip('test does not have ssl support yet')
-        
+
     conn._rbuf = dugong._Buffer(600)
     conn.send_request('GET', '/send_512_bytes')
     conn.read_response()
-    
+
     # Test the case where the readbuffer is truncated and
     # returned, instead of copied
     conn._rbuf.compact()
@@ -307,7 +307,7 @@ def test_exhaust_buffer(conn):
 def test_full_buffer(conn):
     if conn.ssl_context:
         pytest.skip('test does not have ssl support yet')
-        
+
     conn._rbuf = dugong._Buffer(100)
     conn.send_request('GET', '/send_512_bytes')
     conn.read_response()
@@ -320,9 +320,9 @@ def test_full_buffer(conn):
     assert conn._rbuf.e == 0
     conn._rbuf.e = len(conn._rbuf.d)
     conn._rbuf.b = conn._rbuf.e
-    
+
     assert conn.readall() == DUMMY_DATA[pos:512]
-    
+
 def test_readinto_identity(conn):
     conn.send_request('GET', '/send_512_bytes')
     resp = conn.read_response()
@@ -338,7 +338,7 @@ def test_readinto_identity(conn):
         parts.append(buf[:len_])
     assert _join(parts) == DUMMY_DATA[:512]
     assert not conn.response_pending()
-    
+
 def test_read_chunked(conn):
     conn.send_request('GET', '/send_3_300-byte_chunks')
     resp = conn.read_response()
@@ -354,7 +354,7 @@ def test_read_chunked2(conn):
     assert resp.length is None
     assert conn.readall() == DUMMY_DATA[:5]*10
     assert not conn.response_pending()
-    
+
 def test_readinto_chunked(conn):
     conn.send_request('GET', '/send_3_300-byte_chunks')
     resp = conn.read_response()
@@ -370,7 +370,7 @@ def test_readinto_chunked(conn):
         parts.append(buf[:len_])
     assert _join(parts) == DUMMY_DATA[:300] * 3
     assert not conn.response_pending()
-    
+
 def test_double_read(conn):
     conn.send_request('GET', '/send_10_bytes')
     resp = conn.read_response()
@@ -388,7 +388,7 @@ def test_read_raw(conn):
         conn.readall()
     assert conn.read_raw(512) == b'body data'
     assert conn.read_raw(512) == b''
-        
+
 def test_write_toomuch(conn):
     conn.send_request('PUT', '/allgood', body=BodyFollowing(42))
     with pytest.raises(dugong.ExcessBodyData):
@@ -489,7 +489,7 @@ def test_100cont_2(conn):
 
     conn.read_response()
     conn.readall()
-    
+
 def test_100cont_3(conn):
     conn.send_request('PUT', '/fail_with_403', body=BodyFollowing(256), expect100=True)
 
@@ -498,11 +498,11 @@ def test_100cont_3(conn):
 
     conn.read_response()
     conn.readall()
-    
+
 def test_tunnel(http_server):
     if http_server.use_ssl:
         pytest.skip('test does not have ssl support yet')
-        
+
     conn = HTTPConnection('remote_server', proxy=(http_server.host, http_server.port))
 
     conn.send_request('GET', '/send_10_bytes')
@@ -573,7 +573,7 @@ def test_smallbuffer(conn, buffer_size):
     assert resp.length == 512
     assert conn.readall() == DUMMY_DATA[:512]
     assert not conn.response_pending()
-    
+
 def test_mutable_read(conn):
     # Read data and modify it, to make sure that this doesn't
     # affect the buffer
@@ -601,7 +601,7 @@ def test_mutable_read(conn):
 
     assert conn.readall() == DUMMY_DATA[pos:512]
     assert not conn.response_pending()
-    
+
 
 DUMMY_DATA = ','.join(str(x) for x in range(10000)).encode()
 
@@ -612,7 +612,7 @@ class MockRequestHandler(BaseHTTPRequestHandler):
 
     #def log_message(self, format, *args):
     #    pass
-    
+
     def handle_expect_100(self):
         if self.handle_errors():
             return
@@ -650,7 +650,7 @@ class MockRequestHandler(BaseHTTPRequestHandler):
             self.wfile.write(b'body data')
             self.wfile.close()
             return
-            
+
         hit = re.match(r'^/send_([0-9]+)_bytes', self.path)
         if hit:
             len_ = int(hit.group(1))

@@ -27,14 +27,15 @@ Release 3.0, (2014-04-20)
   run the example scripts. This avoids bogus test errors if
   there is no internet connection or if the remote host is down.
   (issue #7).
-  
+
+
 Release 2.2 (2014-03-14)
 ========================
 
 * Unittests requiring the `asyncio` module are now skipped if this
   module is not available.
-  
-  
+
+
 Release 2.1 (2014-03-11)
 ========================
 
@@ -56,7 +57,7 @@ Release 2.0 (2014-02-23)
 * Renamed module from *httpio* to *dugong*.
 
 * The coroutine based API was completely overhauled.
-  
+
 * Introduced `BodyFollowing` class for use with *body* parameter of
   `~HTTPConnection.send_request` method.
 
@@ -90,9 +91,9 @@ Release 2.0 (2014-02-23)
 * Repeatedly trying to read more response data after the response body
   has been read completely no longer results in `StateError`  being
   raised, but simply returns ``b''``.
+
   
 Release 1.0 (2013-07-13)
 ========================
 
 * Initial release.
-  

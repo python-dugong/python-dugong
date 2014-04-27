@@ -61,4 +61,3 @@ def test_aio_future():
 
     sock1.close()
     sock2.close()
-
