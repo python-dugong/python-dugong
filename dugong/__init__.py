@@ -1258,7 +1258,7 @@ if sys.version_info < (3,4,0):
 
         size = 0
         for part in parts:
-            size += len(parts)
+            size += len(part)
 
         buf = bytearray(size)
         i = 0

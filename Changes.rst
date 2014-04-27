@@ -4,7 +4,11 @@ Unreleased Changes
 ==================
 
 * Fixed a problem with some testcases failing with a BrokenPipeError.
-  
+
+* Fixed a bug that, in some cases, resulted in additional ``\0`` bytes
+  being appended at the end of the response body, or in an incorrect
+  `InvalidResponse` exception being raised.
+
 
 Release 3.0, (2014-04-20)
 =========================

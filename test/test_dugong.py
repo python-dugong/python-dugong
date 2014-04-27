@@ -347,6 +347,14 @@ def test_read_chunked(conn):
     assert conn.readall() == DUMMY_DATA[:300]*3
     assert not conn.response_pending()
 
+def test_read_chunked2(conn):
+    conn.send_request('GET', '/send_10_5-byte_chunks')
+    resp = conn.read_response()
+    assert resp.status == 200
+    assert resp.length is None
+    assert conn.readall() == DUMMY_DATA[:5]*10
+    assert not conn.response_pending()
+    
 def test_readinto_chunked(conn):
     conn.send_request('GET', '/send_3_300-byte_chunks')
     resp = conn.read_response()
@@ -678,6 +686,7 @@ class MockRequestHandler(BaseHTTPRequestHandler):
                 if i % 3 == 2 and delay:
                     time.sleep(delay)
                 self.wfile.write(b'\r\n')
+                self.wfile.flush()
             self.wfile.write(b'0\r\n\r\n')
             return
 
