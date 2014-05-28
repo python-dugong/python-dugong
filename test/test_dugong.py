@@ -36,6 +36,7 @@ import os
 import hashlib
 import threading
 import socketserver
+from pytest import raises as assert_raises
 
 # We want to test with a real certificate
 SSL_TEST_HOST = 'www.google.com'
@@ -388,6 +389,29 @@ def test_read_raw(conn):
         conn.readall()
     assert conn.read_raw(512) == b'body data'
     assert conn.read_raw(512) == b''
+
+def test_abort_read(conn):
+    conn.send_request('GET', '/send_3_300-byte_chunks')
+    resp = conn.read_response()
+    assert resp.status == 200
+    conn.read(200)
+    conn.disconnect()
+    assert_raises(dugong.ConnectionClosed, conn.read, 200)
+
+def test_abort_co_read(conn):
+    conn.send_request('GET', '/send_3_300-byte_chunks')
+    resp = conn.read_response()
+    assert resp.status == 200
+    cofun = conn.co_read(450)
+    next(cofun)
+    conn.disconnect()
+    assert_raises(dugong.ConnectionClosed, next, cofun)
+
+def test_abort_write(conn):
+    conn.send_request('PUT', '/allgood', body=BodyFollowing(42))
+    conn.write(b'fooo')
+    conn.disconnect()
+    assert_raises(dugong.ConnectionClosed, conn.write, b'baar')
 
 def test_write_toomuch(conn):
     conn.send_request('PUT', '/allgood', body=BodyFollowing(42))

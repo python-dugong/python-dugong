@@ -9,6 +9,9 @@ Unreleased Changes
   being appended at the end of the response body, or in an incorrect
   `InvalidResponse` exception being raised.
 
+* When trying to continue reading or writing body data after calling
+  `HTTPConnection.disconnect`, dugong now raises `ConnectionClosed`
+  instead of `AttributeError`.
 
 Release 3.0, (2014-04-20)
 =========================

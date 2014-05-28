@@ -551,6 +551,7 @@ class HTTPConnection:
         if not isinstance(buf, memoryview):
             buf = memoryview(buf)
 
+
         fd = self._sock.fileno()
         while True:
             try:
@@ -563,6 +564,8 @@ class HTTPConnection:
             except (socket.timeout, ssl.SSLWantWriteError, BlockingIOError):
                 log.debug('yielding')
                 yield PollNeeded(fd, POLLOUT)
+                if self._sock is None:
+                    raise ConnectionClosed('connection has been closed locally')
                 continue
             except BrokenPipeError:
                 raise ConnectionClosed('found closed when trying to write')
@@ -600,6 +603,9 @@ class HTTPConnection:
         if not self._out_remaining:
             raise StateError('No active request with pending body data')
 
+        if self._sock is None:
+            raise ConnectionClosed('connection has been closed locally')
+
         (method, path, remaining) = self._out_remaining
         if remaining is WAITING_FOR_100c:
             raise StateError("can't write when waiting for 100-continue")
@@ -626,7 +632,7 @@ class HTTPConnection:
         This includes responses that have been partially read.
         '''
 
-        return len(self._pending_requests) > 0
+        return self._sock is not None and len(self._pending_requests) > 0
 
     def read_response(self):
         '''placeholder, will be replaced dynamically'''
@@ -641,6 +647,9 @@ class HTTPConnection:
         '''
 
         log.debug('start')
+
+        if self._sock is None:
+            raise ConnectionClosed('connection has been closed locally')
 
         if len(self._pending_requests) == 0:
             raise StateError('No pending requests')
@@ -828,6 +837,9 @@ class HTTPConnection:
 
         log.debug('start (len=%d)', len_)
 
+        if self._sock is None:
+            raise ConnectionClosed('connection has been closed locally')
+
         if len_ is None:
             return (yield from self.co_readall())
 
@@ -859,6 +871,9 @@ class HTTPConnection:
 
         **Don't use this method unless you know exactly what you are doing**.
         '''
+
+        if self._sock is None:
+            raise ConnectionClosed('connection has been closed locally')
 
         self._sock.setblocking(True)
 
@@ -893,6 +908,9 @@ class HTTPConnection:
         '''
 
         log.debug('start (buflen=%d)', len(buf))
+
+        if self._sock is None:
+            raise ConnectionClosed('connection has been closed locally')
 
         if len(buf) == 0 or self._in_remaining is None:
             return 0
@@ -937,6 +955,8 @@ class HTTPConnection:
             if not got_data and not rbuf:
                 log.debug('buffer empty and nothing to read, yielding..')
                 yield PollNeeded(sock_fd, POLLIN)
+                if self._sock is None:
+                    raise ConnectionClosed('connection has been closed locally')
             elif not got_data:
                 log.debug('nothing more to read')
                 break
@@ -1000,6 +1020,8 @@ class HTTPConnection:
                 else:
                     log.debug('no data yet and nothing to read, yielding..')
                     yield PollNeeded(sock_fd, POLLIN)
+                    if self._sock is None:
+                        raise ConnectionClosed('connection has been closed locally')
                     continue
 
             if not read:
@@ -1114,6 +1136,8 @@ class HTTPConnection:
             while not self._try_fill_buffer():
                 log.debug('need more data, yielding')
                 yield PollNeeded(sock_fd, POLLIN)
+                if self._sock is None:
+                    raise ConnectionClosed('connection has been closed locally')
 
         log.debug('found substr at %d', idx)
         idx += len(substr)
@@ -1169,6 +1193,8 @@ class HTTPConnection:
                 self._rbuf.compact()
             if not self._try_fill_buffer():
                 yield PollNeeded(sock_fd, POLLIN)
+                if self._sock is None:
+                    raise ConnectionClosed('connection has been closed locally')
 
     def readall(self):
         '''placeholder, will be replaced dynamically'''
@@ -1176,6 +1202,9 @@ class HTTPConnection:
 
     def co_readall(self):
         '''Read and return complete response body'''
+
+        if self._sock is None:
+            raise ConnectionClosed('connection has been closed locally')
 
         if self._in_remaining is None:
             return b''
