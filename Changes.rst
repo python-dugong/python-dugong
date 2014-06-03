@@ -95,7 +95,7 @@ Release 2.0 (2014-02-23)
   has been read completely no longer results in `StateError`  being
   raised, but simply returns ``b''``.
 
-  
+
 Release 1.0 (2013-07-13)
 ========================
 

@@ -53,10 +53,10 @@ the appropriate `~ssl.SSLContext` object to `HTTPConnection`. For example::
     conn.send_request('GET', '/index.html')
     resp = conn.read_response()
     body = conn.readall()
-    
+
 If you need information about the peer certificate, use the
 `~HTTPConnection.get_ssl_peercert` method.
-    
+
 Streaming API
 =============
 
@@ -99,10 +99,10 @@ directly to `~HTTPConnection.send_request`, ::
   conn = HTTPConnection('somehost.com')
   conn.send_request('POST', '/form.php', body=request_body)
   conn.read_response()
-  
+
 or (if you want to send bigger amounts) you can provide it in multiple
 chunks::
-  
+
   conn = HTTPConnection('somehost.com')
   with open('newest_release.mp4', r'b') as fh:
       size = os.fstat(fh.fileno()).st_size
@@ -114,7 +114,7 @@ chunks::
           if not buf:
               break
           conn.write(buf)
-          
+
   resp = conn.read_response()
   assert resp.status in (200, 204)
 
@@ -149,13 +149,13 @@ and a second time to read the final response::
       resp = conn.read_response()
       if resp.status != 100:
           raise RuntimeError('Server said: %s' % resp.reason)
-          
+
       while True:
           buf = fh.read(BUFSIZE)
           if not buf:
               break
           conn.write(buf)
-          
+
   resp = conn.read_response()
   assert resp.status in (200, 204)
 
@@ -185,10 +185,10 @@ to retry)::
               raise
       else:
           break
-          
+
 
 .. _pipelining:
-   
+
 Pipelining with Threads
 =======================
 
@@ -229,7 +229,7 @@ read responses is supported::
       resp = conn.read_response()
       assert resp.status == 200
       bodies.append(conn.readall())
-  
+
   thread.join()
 
 Another way is to use coroutines. This is explained in the next
@@ -237,7 +237,7 @@ section.
 
 
 .. _coroutine_pipelining:
-   
+
 Pipelining with Coroutines
 ==========================
 

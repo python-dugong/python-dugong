@@ -22,18 +22,18 @@ def main():
         pass
     else:
         fix_docutils()
-    
+
     with open(os.path.join(basedir, 'README.rst'), 'r') as fh:
         long_desc = fh.read()
     import dugong
-    
+
     setuptools.setup(
           name='dugong',
           zip_safe=True,
           long_description=long_desc,
           version=dugong.__version__,
           description=('A HTTP 1.1 client module supporting asynchronous IO, pipelining '
-                       'and `Expect: 100-continue`. Designed for RESTful protocols.'), 
+                       'and `Expect: 100-continue`. Designed for RESTful protocols.'),
           author='Nikolaus Rath',
           author_email='Nikolaus@rath.org',
           license='PSF',
@@ -52,14 +52,14 @@ def main():
                                              'release': ('setup.py', dugong.__version__) }},
      )
 
-    
+
 def fix_docutils():
     '''Work around https://bitbucket.org/birkenfeld/sphinx/issue/1154/'''
-    
-    import docutils.parsers 
+
+    import docutils.parsers
     from docutils.parsers import rst
     old_getclass = docutils.parsers.get_parser_class
-    
+
     # Check if bug is there
     try:
         old_getclass('rst')
@@ -67,7 +67,7 @@ def fix_docutils():
         pass
     else:
         return
-     
+
     def get_parser_class(parser_name):
         """Return the Parser class from the `parser_name` module."""
         if parser_name in ('rst', 'restructuredtext'):
@@ -75,8 +75,8 @@ def fix_docutils():
         else:
             return old_getclass(parser_name)
     docutils.parsers.get_parser_class = get_parser_class
-    
+
     assert docutils.parsers.get_parser_class('rst') is rst.Parser
-    
+
 if __name__ == '__main__':
     main()

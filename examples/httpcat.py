@@ -29,7 +29,7 @@ for url in sys.argv[1:]:
     hit = re.match(r'http://([^/]+)(/.+)$', url)
     assert hit
     (host, path) = hit.groups()
-    
+
     conn = HTTPConnection(host)
     conn.send_request('GET', path)
     resp = conn.read_response()
@@ -67,5 +67,5 @@ for url in sys.argv[1:]:
         if not buf:
             break
         outstream.write(buf)
-        
-        
+
+

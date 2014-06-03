@@ -3,9 +3,9 @@
 ==========================
 
 .. default-role:: code
-                  
+
 .. start-intro
-   
+
 The Python Dugong module provides an API for communicating with HTTP
 1.1 servers. It is an alternative to the standard library's
 `http.client` (formerly *httplib*) module. In contrast to
@@ -27,7 +27,7 @@ The Python Dugong module provides an API for communicating with HTTP
 
 - supports non-blocking, asynchronous operation and is compatible with
   the asyncio_ module.
-  
+
 - is not compatible with old HTTP 0.9 or 1.0 servers.
 
 All request and response headers are represented as `str`, but must be

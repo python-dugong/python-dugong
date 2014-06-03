@@ -20,7 +20,7 @@ else:
 if (os.path.exists(os.path.join(basedir, 'setup.py')) and
     os.path.exists(os.path.join(basedir, 'dugong', '__init__.py'))):
     sys.path.insert(0, basedir)
-    
+
 from dugong import HTTPConnection
 
 # When running from HG repo, enable all warnings
@@ -32,7 +32,7 @@ class LinkExtractor(HTMLParser):
     def __init__(self):
         super().__init__(strict=False)# , convert_charrefs=True)
         self.links = []
-        
+
     def handle_starttag(self, tag, attrs):
         if tag != 'a':
             return
@@ -95,4 +95,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-    
+

@@ -1,7 +1,7 @@
 .. currentmodule:: dugong
-                   
+
 .. _coroutines:
-   
+
 =============
 Coroutine API
 =============
@@ -41,7 +41,7 @@ very simple way to wait for a coroutine to complete is to use a
 `~select.select` loop::
 
   from select import select, POLLIN
-  
+
   # establish connection, send request, read response header
 
   # Create coroutine
@@ -55,7 +55,7 @@ very simple way to wait for a coroutine to complete is to use a
           # prepare select call
           read_fds = (io_req.fd,) if io_req.mask & POLLIN else ()
           write_fds = (io_req.fd,) if io_req.mask & POLLOUT else ()
-          
+
           # Wait for I/O readiness
           select(read_fds, write_fds, ())
   except StopIteration as exc:
@@ -89,9 +89,9 @@ to introduce a hard dependency on asyncio, which was deemend
 undesirable.
 
 Using asyncio, the above example becomes much simpler::
-  
+
   import asyncio
-  
+
   # establish connection, send request, read response header
 
   # Create coroutine
@@ -131,7 +131,7 @@ retrieve a stored in *url_list*)::
       assert resp.status == 200
       body = yield from conn.co_readall()
       return body
-      
+
   futures = []
   for url in url_list:
       o = urlsplit(url)
@@ -165,19 +165,19 @@ When creating your own coroutines, you generally have two choices:
          # ..
          buf = yield from AioFuture(conn.co_read(8192))
          # ...
-         
+
          # May also call other asyncio compatible coroutines:
          yield from asyncio.sleep(1)
 
          # ..
-         
+
      task = asyncio.Task(do_stuff)
      asyncio.get_event_loop.run_until_complete(task)
-     
+
    The advantage of this style is that even though you need to wrap
    every Dugong call into `AioFuture`, you can freely mix Dugong and
    other asyncio compatible coroutines.
-   
+
 #. You create Dugong style coroutines, and wrap them into `AioFuture`
    just before adding them to the asyncio event loop, e.g.::
 
@@ -197,7 +197,7 @@ When creating your own coroutines, you generally have two choices:
    The advantage of this is that you need to call `AioFuture` only
    once. The disadvantage is that you can not yield from other asyncio
    coroutines in your coroutine.
-   
+
 Generally it's recommended to use the style that produces more
 readable code.
 
@@ -237,7 +237,7 @@ contents of the existing documents to disk. ::
     # Create coroutines
     send_request_crt = send_requests()
     read_response_crt = read_responses()
-    
+
     while True:
         # Send requests until we block
         if send_request_crt:
@@ -258,8 +258,8 @@ contents of the existing documents to disk. ::
         assert io_req_1.mask == POLLOUT
         assert io_req_2.mask == POLLIN
         select((io_req_2.fd,), (io_req_1.fd,), ())
- 
-        
+
+
 .. _Wikipedia_Coroutine: http://en.wikipedia.org/wiki/Coroutine
 .. _`PEP 342`: http://legacy.python.org/dev/peps/pep-0342/
 .. _`PEP 380`: http://legacy.python.org/dev/peps/pep-0380/

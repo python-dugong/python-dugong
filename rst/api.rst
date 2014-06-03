@@ -11,7 +11,7 @@ Classes
 
 .. autoclass:: HTTPResponse
    :members:
-      
+
 .. autoclass:: BodyFollowing
    :members:
 
@@ -22,13 +22,13 @@ Classes
    :members:
 
 .. autoclass:: AioFuture
-               
+
 Functions
 ---------
 
 .. autofunction:: is_temp_network_error
 
-   
+
 Exceptions
 ----------
 
@@ -37,17 +37,17 @@ Exceptions
 
 .. autoexception:: InvalidResponse
    :members:
-      
+
 .. autoexception:: UnsupportedResponse
    :members:
-      
+
 .. autoexception:: ExcessBodyData
    :members:
 
 .. autoexception:: StateError
    :members:
-      
-      
+
+
 Constants
 ---------
 
@@ -55,7 +55,7 @@ Constants
 
 .. autodata:: MAX_HEADER_SIZE
 
-              
+
 Thread Safety
 -------------
 
@@ -80,7 +80,7 @@ There are several ways to avoid this:
 - Do not send a new request before the last response has been read. This is
   the easiest solution, but it means that no HTTP pipelining can be used.
 
-- Use different threads for sending requests and receiving responses. 
+- Use different threads for sending requests and receiving responses.
 
 - Use the coroutine based API (see :ref:`coroutine_pipelining` in the
   tutorial).

@@ -15,19 +15,19 @@ def check_test_output(request, capfd):
         (stdout, stderr) = capfd.readouterr()
         sys.stdout.write(stdout)
         sys.stderr.write(stderr)
-        
+
         if ('exception' in stderr.lower()
             or 'exception' in stdout.lower()):
             raise AssertionError('Suspicious output to stderr')
-        
+
     request.addfinalizer(raise_on_exception_in_out)
 
-    
+
 def pytest_addoption(parser):
     group = parser.getgroup("general")
     group._addoption("--installed", action="store_true", default=False,
                      help="Test the installed package.")
-    
+
     group = parser.getgroup("terminal reporting")
     group._addoption("--logdebug", action="store_true", default=False,
                      help="Activate debugging output.")

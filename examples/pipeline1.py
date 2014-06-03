@@ -32,7 +32,7 @@ for url in sys.argv[1:]:
         raise SystemExit('Can only do http to defaut port')
     path_list.append(urlunsplit(('', '') + o[2:4] + ('',)))
 
-    
+
 # Code from here on is included in documentation
 # start-example
 import asyncio
@@ -68,7 +68,7 @@ loop = asyncio.get_event_loop()
 # Register the coroutines with the event loop
 send_future = AioFuture(send_crt, loop=loop)
 recv_future = AioFuture(recv_crt, loop=loop)
-  
+
 # Run the event loop until the receive coroutine is done (which
 # implies that all the requests must have been sent as well):
 loop.run_until_complete(recv_future)
