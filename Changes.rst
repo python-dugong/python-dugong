@@ -1,7 +1,7 @@
 .. currentmodule:: dugong
 
-Unreleased Changes
-==================
+Release 3.1 (2014-06-28)
+========================
 
 * Fixed a problem with some testcases failing with a BrokenPipeError.
 
