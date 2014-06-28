@@ -634,8 +634,8 @@ class MockRequestHandler(BaseHTTPRequestHandler):
     server_version = "MockHTTP"
     protocol_version = 'HTTP/1.1'
 
-    #def log_message(self, format, *args):
-    #    pass
+    def log_message(self, format, *args):
+        pass
 
     def handle_expect_100(self):
         if self.handle_errors():
