@@ -49,15 +49,18 @@ def write(sock):
 
 def test_aio_future():
     loop = asyncio.get_event_loop()
-    (sock1, sock2) = socket.socketpair()
+    try:
+        (sock1, sock2) = socket.socketpair()
 
-    asyncio.Task(write(sock2))
-    read_fut = AioFuture(read(sock1))
-    read_fut.add_done_callback(lambda fut: loop.stop())
-    loop.call_later(6, loop.stop)
-    loop.run_forever()
+        asyncio.Task(write(sock2))
+        read_fut = AioFuture(read(sock1))
+        read_fut.add_done_callback(lambda fut: loop.stop())
+        loop.call_later(6, loop.stop)
+        loop.run_forever()
 
-    assert read_fut.done()
+        assert read_fut.done()
 
-    sock1.close()
-    sock2.close()
+        sock1.close()
+        sock2.close()
+    finally:
+        loop.close()
