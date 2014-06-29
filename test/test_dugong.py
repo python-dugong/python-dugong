@@ -399,12 +399,27 @@ def test_abort_read(conn):
     assert_raises(dugong.ConnectionClosed, conn.read, 200)
 
 def test_abort_co_read(conn):
-    conn.send_request('GET', '/send_3_300-byte_chunks')
-    resp = conn.read_response()
-    assert resp.status == 200
-    cofun = conn.co_read(450)
-    next(cofun)
-    conn.disconnect()
+    # We need to delay the write to ensure that we encounter a blocking read
+    delay = 10
+    while True:
+        conn.send_request('GET', '/send_3_300-byte_chunks_delay_%d_ms' % delay)
+        resp = conn.read_response()
+        assert resp.status == 200
+        cofun = conn.co_read(450)
+        try:
+            next(cofun)
+        except StopIteration:
+            # Not good, need to wait longer
+            pass
+        else:
+            break
+        finally:
+            conn.disconnect()
+
+        if delay > 5000:
+            pytest.fail('no blocking read even with %f sec sleep' % delay)
+        delay *= 2
+
     assert_raises(dugong.ConnectionClosed, next, cofun)
 
 def test_abort_write(conn):
