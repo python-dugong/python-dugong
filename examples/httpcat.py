@@ -21,7 +21,7 @@ if (os.path.exists(os.path.join(basedir, 'setup.py')) and
 # When running from HG repo, enable all warnings
 if os.path.exists(os.path.join(basedir, '.hg')):
     import warnings
-    warnings.simplefilter('default')
+    warnings.simplefilter('error')
 
 from dugong import HTTPConnection, BUFFER_SIZE
 
@@ -68,4 +68,4 @@ for url in sys.argv[1:]:
             break
         outstream.write(buf)
 
-
+    conn.disconnect()

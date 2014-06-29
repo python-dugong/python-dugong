@@ -26,7 +26,7 @@ from dugong import HTTPConnection
 # When running from HG repo, enable all warnings
 if os.path.exists(os.path.join(basedir, '.hg')):
     import warnings
-    warnings.simplefilter('default')
+    warnings.simplefilter('error')
 
 class LinkExtractor(HTMLParser):
     def __init__(self):
@@ -89,6 +89,8 @@ def main():
         if not buf:
             break
         parser.feed(buf)
+
+    conn.disconnect()
 
     for link in parser.links:
         print(urljoin(url, link))

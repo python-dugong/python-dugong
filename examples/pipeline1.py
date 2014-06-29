@@ -17,7 +17,7 @@ if (os.path.exists(os.path.join(basedir, 'setup.py')) and
 # When running from HG repo, enable all warnings
 if os.path.exists(os.path.join(basedir, '.hg')):
     import warnings
-    warnings.simplefilter('default')
+    warnings.simplefilter('error')
 
 # Assemble path list
 hostname = None
@@ -79,5 +79,7 @@ try:
 finally:
     loop.close()
 
-# end-example
+# Close connection
+conn.disconnect()
 
+# end-example
