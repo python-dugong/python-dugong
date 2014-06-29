@@ -56,41 +56,38 @@ def main():
     else:
         ssl_context = None
 
-    conn = HTTPConnection(url_els.hostname, port=url_els.port,
-                          ssl_context=ssl_context)
+    with HTTPConnection(url_els.hostname, port=url_els.port,
+                          ssl_context=ssl_context) as conn:
+        path = urlunsplit(('', '') + url_els[2:4] + ('',)) or '/'
+        conn.send_request('GET', path)
+        resp = conn.read_response()
+        if resp.status != 200:
+            raise SystemExit('%d %s' % (resp.status, resp.reason))
 
-    path = urlunsplit(('', '') + url_els[2:4] + ('',)) or '/'
-    conn.send_request('GET', path)
-    resp = conn.read_response()
-    if resp.status != 200:
-        raise SystemExit('%d %s' % (resp.status, resp.reason))
+        # Determine if we're reading text or binary data, and (in case of text),
+        # what character set is being used.
+        if 'Content-Type' not in resp.headers:
+            type_ = 'application/octet-stream'
+        else:
+            type_ = resp.headers['Content-Type']
 
-    # Determine if we're reading text or binary data, and (in case of text),
-    # what character set is being used.
-    if 'Content-Type' not in resp.headers:
-        type_ = 'application/octet-stream'
-    else:
-        type_ = resp.headers['Content-Type']
+        hit = re.match(r'text/x?html(?:; charset=(.+))?$', type_)
+        if not hit:
+            raise SystemExit('Server did not send html but %s' % type_)
 
-    hit = re.match(r'text/x?html(?:; charset=(.+))?$', type_)
-    if not hit:
-        raise SystemExit('Server did not send html but %s' % type_)
+        if hit.group(1):
+            charset = hit.group(1)
+        else:
+            charset = 'latin1'
 
-    if hit.group(1):
-        charset = hit.group(1)
-    else:
-        charset = 'latin1'
+        html_stream = TextIOWrapper(conn, encoding=charset)
+        parser = LinkExtractor()
 
-    html_stream = TextIOWrapper(conn, encoding=charset)
-    parser = LinkExtractor()
-
-    while True:
-        buf = html_stream.read(16*1024)
-        if not buf:
-            break
-        parser.feed(buf)
-
-    conn.disconnect()
+        while True:
+            buf = html_stream.read(16*1024)
+            if not buf:
+                break
+            parser.feed(buf)
 
     for link in parser.links:
         print(urljoin(url, link))

@@ -299,11 +299,15 @@ class _Buffer:
 
 class HTTPConnection:
     '''
-    This class encapsulates a HTTP connection. Methods whose name begin with
-    ``co_`` return coroutines. Instead of blocking, a coroutines will yield
-    a `PollNeeded` instance that encapsulates information about the IO operation
-    that would block. The coroutine should be resumed once the operation can be
-    performed without blocking.
+    This class encapsulates a HTTP connection.
+
+    Methods whose name begin with ``co_`` return coroutines. Instead of
+    blocking, a coroutines will yield a `PollNeeded` instance that encapsulates
+    information about the IO operation that would block. The coroutine should be
+    resumed once the operation can be performed without blocking.
+
+    `HTTPConnection` instances can be used as context managers. The
+    `.disconnect` method will be called on exit from the managed block.
     '''
 
     def __init__(self, hostname, port=None, ssl_context=None, proxy=None):
@@ -1257,6 +1261,12 @@ class HTTPConnection:
         else:
             log.debug('already closed')
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.disconnect()
+        return False
 
 def _extend_HTTPConnection_docstrings():
 

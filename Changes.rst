@@ -1,5 +1,10 @@
 .. currentmodule:: dugong
 
+Unreleased Changes
+==================
+
+* A `HTTPConnection` instance can now be used as a context manager.
+
 Release 3.1 (2014-06-28)
 ========================
 

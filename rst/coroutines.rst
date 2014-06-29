@@ -91,6 +91,7 @@ undesirable.
 Using asyncio, the above example becomes much simpler::
 
   import asyncio
+  import atexit
 
   # establish connection, send request, read response header
 
@@ -100,6 +101,7 @@ Using asyncio, the above example becomes much simpler::
   # Get a MainLoop instance from the asyncio module to switch
   # between the coroutines as needed
   loop = asyncio.get_event_loop()
+  atexit.register(loop.close)
 
   # Create and schedule asyncio future
   fut = AioFuture(crt, loop=loop)
@@ -122,6 +124,7 @@ sequential. Here's how to do it (suppose the URLs you'd like to
 retrieve a stored in *url_list*)::
 
   import asyncio
+  import atexit
   from urllib.parse import urlsplit, urlunsplit
 
   def get_url(host, port, path):
@@ -144,6 +147,7 @@ retrieve a stored in *url_list*)::
 
   # Run coroutines
   loop = asyncio.get_event_loop()
+  atexit.register(loop.close)
   loop.run_until_complete(asyncio.wait(futures))
 
   # Get the results
@@ -157,6 +161,8 @@ When creating your own coroutines, you generally have two choices:
 
 #. You can create asyncio style coroutines, in which you wrap calls to
    Dugong coroutines into `AioFuture`, e.g.::
+
+     # ...
 
      @asyncio.coroutine
      def do_stuff():
@@ -172,7 +178,7 @@ When creating your own coroutines, you generally have two choices:
          # ..
 
      task = asyncio.Task(do_stuff)
-     asyncio.get_event_loop.run_until_complete(task)
+     loop.run_until_complete(task)
 
    The advantage of this style is that even though you need to wrap
    every Dugong call into `AioFuture`, you can freely mix Dugong and
@@ -180,6 +186,8 @@ When creating your own coroutines, you generally have two choices:
 
 #. You create Dugong style coroutines, and wrap them into `AioFuture`
    just before adding them to the asyncio event loop, e.g.::
+
+     # ...
 
      def do_stuff():
          # ...
@@ -192,7 +200,7 @@ When creating your own coroutines, you generally have two choices:
          #yield from asyncio.sleep(1) # WON'T WORK!
 
      fut = AioFuture(do_stuf())
-     asyncio.get_event_loop.run_until_complete(fut)
+     loop.run_until_complete(fut)
 
    The advantage of this is that you need to call `AioFuture` only
    once. The disadvantage is that you can not yield from other asyncio
@@ -216,6 +224,8 @@ tries to retrieve a number of documents (stored in *path_list*),
 stores the missing paths in *missing_documents*, and saves the
 contents of the existing documents to disk. ::
 
+    # Note: in a real application, don't forget to ensure that
+    # conn.disconnect() is called eventually
     conn = HTTPConnection('somehost.com')
     missing_documents = []
 

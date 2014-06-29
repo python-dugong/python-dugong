@@ -10,10 +10,10 @@ Basic Use
 
 A HTTP request can be send and read in four lines::
 
-  conn = HTTPConnection('www.python.org')
-  conn.send_request('GET', '/index.html')
-  resp = conn.read_response()
-  body = conn.readall()
+  with HTTPConnection('www.python.org') as conn:
+      conn.send_request('GET', '/index.html')
+      resp = conn.read_response()
+      body = conn.readall()
 
 `~HTTPConnection.send_request` is a `HTTPResponse` object that gives
 access to the response header::
@@ -49,10 +49,10 @@ the appropriate `~ssl.SSLContext` object to `HTTPConnection`. For example::
     ssl_context.verify_mode = ssl.CERT_REQUIRED
     ssl_context.set_default_verify_paths()
 
-    conn = HTTPConnection('www.google.com', ssl_context=ssl_context)
-    conn.send_request('GET', '/index.html')
-    resp = conn.read_response()
-    body = conn.readall()
+    with HTTPConnection('www.google.com', ssl_context=ssl_context) as conn:
+        conn.send_request('GET', '/index.html')
+        resp = conn.read_response()
+        body = conn.readall()
 
 If you need information about the peer certificate, use the
 `~HTTPConnection.get_ssl_peercert` method.
@@ -64,7 +64,9 @@ When retrieving larger objects, it's generally better not to read the
 response body all at once but in smaller chunks::
 
   BUFSIZE = 32*1024 # Read in 32 kB chunks
-  conn = HTTPConnection('somehost.com')
+
+  # ...
+
   conn.send_request('GET', '/big_movie.mp4')
   resp = conn.read_response()
   assert resp.status == 200
@@ -96,14 +98,14 @@ directly to `~HTTPConnection.send_request`, ::
 
   # A simple SQL injection attack for your favorite PHP script
   request_body = "'; DELETE FROM passwords;".encode('us-ascii')
-  conn = HTTPConnection('somehost.com')
-  conn.send_request('POST', '/form.php', body=request_body)
-  conn.read_response()
+  with HTTPConnection('somehost.com') as conn:
+      conn.send_request('POST', '/form.php', body=request_body)
+      conn.read_response()
 
 or (if you want to send bigger amounts) you can provide it in multiple
 chunks::
 
-  conn = HTTPConnection('somehost.com')
+  # ...
   with open('newest_release.mp4', r'b') as fh:
       size = os.fstat(fh.fileno()).st_size
       conn.send_request('PUT', '/public/newest_release.mp4',
@@ -140,7 +142,7 @@ To use this mechanism, pass the *expect100* parameter to
 `~HTTPConnection.read_response` twice: once before sending body data,
 and a second time to read the final response::
 
-  conn = HTTPConnection('somehost.com')
+  # ...
   with open('newest_release.mp4', r'b') as fh:
       size = os.fstat(fh.fileno()).st_size
       conn.send_request('PUT', '/public/newest_release.mp4',
@@ -170,9 +172,9 @@ given exception indicates a temporary problem (i.e., if it makes sense
 to retry)::
 
   delay = 1
+  conn = HTTPConnection('www.python.org')
   while True:
       try:
-          conn = HTTPConnection('www.python.org')
           conn.send_request('GET', '/index.html')
           conn.read_response()
           body = conn.readall()
@@ -185,6 +187,8 @@ to retry)::
               raise
       else:
           break
+      finally:
+          conn.disconnect()
 
 
 .. _pipelining:
@@ -216,21 +220,21 @@ One better way do it is to use threads. Dugong is not generally
 threadsafe, but using one thread to send requests and one thread to
 read responses is supported::
 
-  conn = HTTPConnection('somehost.com')
+  with HTTPConnection('somehost.com') as conn:
 
-  def send_requests():
+      def send_requests():
+          for path in path_list:
+              conn.send_request('GET', path)
+      thread = threading.thread(target=send_requests)
+      thread.run()
+
+      bodies = []
       for path in path_list:
-          conn.send_request('GET', path)
-  thread = threading.thread(target=send_requests)
-  thread.run()
+          resp = conn.read_response()
+          assert resp.status == 200
+          bodies.append(conn.readall())
 
-  bodies = []
-  for path in path_list:
-      resp = conn.read_response()
-      assert resp.status == 200
-      bodies.append(conn.readall())
-
-  thread.join()
+      thread.join()
 
 Another way is to use coroutines. This is explained in the next
 section.

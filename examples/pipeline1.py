@@ -36,35 +36,36 @@ for url in sys.argv[1:]:
 # Code from here on is included in documentation
 # start-example
 import asyncio
+import atexit
 from dugong import HTTPConnection, AioFuture
 
-conn = HTTPConnection(hostname)
-
-# This generator function returns a coroutine that sends
-# all the requests.
-def send_requests():
-    for path in path_list:
-        yield from conn.co_send_request('GET', path)
-
-# This generator function returns a coroutine that reads
-# all the responses
-def read_responses():
-    bodies = []
-    for path in path_list:
-        resp = yield from conn.co_read_response()
-        assert resp.status == 200
-        buf = yield from conn.co_readall()
-        bodies.append(buf)
-    return bodies
-
-# Create the coroutines
-send_crt = send_requests()
-recv_crt = read_responses()
-
 # Get a MainLoop instance from the asyncio module to switch
-# between the coroutines as needed
+# between coroutines (and clean up at program exit)
 loop = asyncio.get_event_loop()
-try:
+atexit.register(loop.close)
+
+with HTTPConnection(hostname) as conn:
+    # This generator function returns a coroutine that sends
+    # all the requests.
+    def send_requests():
+        for path in path_list:
+            yield from conn.co_send_request('GET', path)
+
+    # This generator function returns a coroutine that reads
+    # all the responses
+    def read_responses():
+        bodies = []
+        for path in path_list:
+            resp = yield from conn.co_read_response()
+            assert resp.status == 200
+            buf = yield from conn.co_readall()
+            bodies.append(buf)
+        return bodies
+
+    # Create the coroutines
+    send_crt = send_requests()
+    recv_crt = read_responses()
+
     # Register the coroutines with the event loop
     send_future = AioFuture(send_crt, loop=loop)
     recv_future = AioFuture(recv_crt, loop=loop)
@@ -75,11 +76,5 @@ try:
 
     # Get the result returned by the coroutine
     bodies = recv_future.result()
-
-finally:
-    loop.close()
-
-# Close connection
-conn.disconnect()
 
 # end-example

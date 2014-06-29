@@ -30,42 +30,40 @@ for url in sys.argv[1:]:
     assert hit
     (host, path) = hit.groups()
 
-    conn = HTTPConnection(host)
-    conn.send_request('GET', path)
-    resp = conn.read_response()
-    if resp.status != 200:
-        raise SystemExit('%d %s' % (resp.status, resp.reason))
+    with HTTPConnection(host) as conn:
+        conn.send_request('GET', path)
+        resp = conn.read_response()
+        if resp.status != 200:
+            raise SystemExit('%d %s' % (resp.status, resp.reason))
 
-    # Determine if we're reading text or binary data, and (in case of text),
-    # what character set is being used.
-    if 'Content-Type' not in resp.headers:
-        type_ = 'application/octet-stream'
-    else:
-        type_ = resp.headers['Content-Type']
+        # Determine if we're reading text or binary data, and (in case of text),
+        # what character set is being used.
+        if 'Content-Type' not in resp.headers:
+            type_ = 'application/octet-stream'
+        else:
+            type_ = resp.headers['Content-Type']
 
-    hit = re.match(r'(.+?)(?:; charset=(.+))?$', type_)
-    if not hit:
-        raise SystemExit('Unable to parse content-type: %s' % type_)
-    if hit.group(2):
-        charset = hit.group(2)
-    elif hit.group(1).startswith('text/'):
-        charset = 'latin1'
-    else:
-        charset = None # binary data
+        hit = re.match(r'(.+?)(?:; charset=(.+))?$', type_)
+        if not hit:
+            raise SystemExit('Unable to parse content-type: %s' % type_)
+        if hit.group(2):
+            charset = hit.group(2)
+        elif hit.group(1).startswith('text/'):
+            charset = 'latin1'
+        else:
+            charset = None # binary data
 
-    if charset:
-        instream = TextIOWrapper(conn, encoding=charset)
-        outstream = sys.stdout
-    else:
-        instream = conn
-        # Since we're writing bytes rather than text, we need to bypass
-        # any encoding.
-        outstream = sys.stdout.raw
+        if charset:
+            instream = TextIOWrapper(conn, encoding=charset)
+            outstream = sys.stdout
+        else:
+            instream = conn
+            # Since we're writing bytes rather than text, we need to bypass
+            # any encoding.
+            outstream = sys.stdout.raw
 
-    while True:
-        buf = instream.read(BUFFER_SIZE)
-        if not buf:
-            break
-        outstream.write(buf)
-
-    conn.disconnect()
+        while True:
+            buf = instream.read(BUFFER_SIZE)
+            if not buf:
+                break
+            outstream.write(buf)
