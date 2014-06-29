@@ -64,16 +64,20 @@ recv_crt = read_responses()
 # Get a MainLoop instance from the asyncio module to switch
 # between the coroutines as needed
 loop = asyncio.get_event_loop()
+try:
+    # Register the coroutines with the event loop
+    send_future = AioFuture(send_crt, loop=loop)
+    recv_future = AioFuture(recv_crt, loop=loop)
 
-# Register the coroutines with the event loop
-send_future = AioFuture(send_crt, loop=loop)
-recv_future = AioFuture(recv_crt, loop=loop)
+    # Run the event loop until the receive coroutine is done (which
+    # implies that all the requests must have been sent as well):
+    loop.run_until_complete(recv_future)
 
-# Run the event loop until the receive coroutine is done (which
-# implies that all the requests must have been sent as well):
-loop.run_until_complete(recv_future)
+    # Get the result returned by the coroutine
+    bodies = recv_future.result()
 
-# Get the result returned by the coroutine
-bodies = recv_future.result()
+finally:
+    loop.close()
+
 # end-example
 
