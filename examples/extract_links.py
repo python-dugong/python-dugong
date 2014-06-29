@@ -30,7 +30,7 @@ if os.path.exists(os.path.join(basedir, '.hg')):
 
 class LinkExtractor(HTMLParser):
     def __init__(self):
-        super().__init__(strict=False)# , convert_charrefs=True)
+        super().__init__(convert_charrefs=True)
         self.links = []
 
     def handle_starttag(self, tag, attrs):
