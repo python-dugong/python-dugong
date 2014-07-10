@@ -5,6 +5,18 @@ Unreleased Changes
 
 * A `HTTPConnection` instance can now be used as a context manager.
 
+* If a connection is closed unexpectedly while request body data is
+  being written to the server (i.e., during a call to
+  `HTTPConnection.write` or `HTTPConnection.co_write`), dugong now
+  pretends that the body has been sent to the server completely (while
+  still raising `ConnectionClosed`).
+
+  This makes it possible to catch the exception and nevertheless call
+  `~HTTPConnection.read_response` (or
+  `~HTTPConnection.co_read_response`) to try to read an error response
+  that the server may have sent during the upload (if no response has
+  been received, `ConnectionClosed` will be raised again).
+
 Release 3.1 (2014-06-28)
 ========================
 

@@ -618,7 +618,15 @@ class HTTPConnection:
             raise ExcessBodyData('trying to write %d bytes, but only %d bytes pending'
                                     % (len(buf), remaining))
 
-        yield from self._co_send(buf)
+        try:
+            yield from self._co_send(buf)
+        except ConnectionClosed:
+            # If the server closed the connection, we pretend that all data
+            # has been sent, so that we can still read a (buffered) error
+            # response.
+            self._out_remaining = None
+            self._pending_requests.append((method, path, None))
+            raise
 
         len_ = len(buf)
         if len_ == remaining:

@@ -21,7 +21,8 @@ if __name__ == '__main__':
 
     sys.exit(pytest.main([__file__] + sys.argv[1:]))
 
-from dugong import HTTPConnection, BodyFollowing, CaseInsensitiveDict, _join
+from dugong import (HTTPConnection, BodyFollowing, CaseInsensitiveDict, _join,
+                    ConnectionClosed)
 import dugong
 from http.server import BaseHTTPRequestHandler, _quote_html
 from io import TextIOWrapper
@@ -537,6 +538,62 @@ def test_100cont_3(conn):
 
     conn.read_response()
     conn.readall()
+
+def test_aborted_write1(conn, monkeypatch):
+    BUFSIZE = 64*1024
+
+    # Monkeypatch request handler
+    def do_PUT(self):
+        # Read half the data, then generate error and
+        # close connection
+        self.rfile.read(BUFSIZE)
+        self.send_error(code=401, message='Please stop!')
+        self.close_connection = True
+
+    monkeypatch.setattr(MockRequestHandler, 'do_PUT', do_PUT)
+
+    # Send request
+    conn.send_request('PUT', '/big_object', body=BodyFollowing(BUFSIZE*50),
+                      expect100=True)
+    resp = conn.read_response()
+    assert resp.status == 100
+    assert resp.length == 0
+
+    # Try to write data
+    with pytest.raises(ConnectionClosed):
+        for _ in range(50):
+            conn.write(b'f' * BUFSIZE)
+
+    # Nevertheless, try to read response
+    resp = conn.read_response()
+    assert resp.status == 401
+    assert resp.reason == 'Please stop!'
+
+def test_aborted_write2(conn, monkeypatch):
+    BUFSIZE = 64*1024
+
+    # Monkeypatch request handler
+    def do_PUT(self):
+        # Read half the data, then silently close connection
+        self.rfile.read(BUFSIZE)
+        self.close_connection = True
+
+    monkeypatch.setattr(MockRequestHandler, 'do_PUT', do_PUT)
+
+    # Send request
+    conn.send_request('PUT', '/big_object', body=BodyFollowing(BUFSIZE*50),
+                      expect100=True)
+    resp = conn.read_response()
+    assert resp.status == 100
+    assert resp.length == 0
+
+    # Try to write data
+    with pytest.raises(ConnectionClosed):
+        for _ in range(50):
+            conn.write(b'f' * BUFSIZE)
+
+    # Nevertheless, try to read response
+    assert_raises(ConnectionClosed, conn.read_response)
 
 def test_tunnel(http_server):
     if http_server.use_ssl:
