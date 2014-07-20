@@ -55,6 +55,7 @@ Constants
 
 .. autodata:: MAX_HEADER_SIZE
 
+.. autodata:: DNS_TEST_HOSTNAMES
 
 Thread Safety
 -------------

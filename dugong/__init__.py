@@ -57,6 +57,12 @@ IDENTITY_ENCODING = 'identity_encoding'
 #: for a 100-continue response from the server
 WAITING_FOR_100c = object()
 
+#: Sequence of ``(hostname, port)`` tuples that are used by
+#: `is_temp_network_error` to distinguish between permanent and temporary name
+#: resolution problems.
+DNS_TEST_HOSTNAMES=(('www.google.com', 80),
+                    ('www.iana.org', 80),
+                    ('C.root-servers.org', 53))
 
 class PollNeeded(tuple):
     '''
@@ -1330,17 +1336,34 @@ def eval_coroutine(crt):
         return exc.value
 
 def is_temp_network_error(exc):
-    '''Return true if *exc* represents a potentially temporary network problem'''
+    '''Return true if *exc* represents a potentially temporary network problem
+
+    For problems with name resolution, the exception generally does not contain
+    enough information to distinguish between an unresolvable hostname and a
+    problem with the DNS server. In this case, this function attempts to resolve
+    the addresses in `DNS_TEST_HOSTNAMES`. A name resolution problem is
+    considered permanent if at least one test hostname can be resolved, and
+    temporary if none of the test hostnames can be resolved.
+    '''
 
     if isinstance(exc, (socket.timeout, ConnectionError, TimeoutError, InterruptedError,
                         ConnectionClosed, ssl.SSLZeroReturnError, ssl.SSLEOFError,
                         ssl.SSLSyscallError)):
         return True
 
-    # Formally this is a permanent error. However, it may also indicate
-    # that there is currently no network connection to the DNS server
+    # The exception also unfortunately does not help us to distinguish between
+    # permanent and temporary problems. See:
+    # https://stackoverflow.com/questions/24855168/
+    # https://stackoverflow.com/questions/24855669/
     elif (isinstance(exc, (socket.gaierror, socket.herror))
           and exc.errno in (socket.EAI_AGAIN, socket.EAI_NONAME)):
+        for (hostname, port) in DNS_TEST_HOSTNAMES:
+            try:
+                socket.getaddrinfo(hostname, port)
+            except (socket.gaierror, socket.herror):
+                pass
+            else:
+                return False
         return True
 
     return False

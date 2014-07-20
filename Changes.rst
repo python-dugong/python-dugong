@@ -17,6 +17,10 @@ Unreleased Changes
   that the server may have sent during the upload (if no response has
   been received, `ConnectionClosed` will be raised again).
 
+* `is_temp_network_error` now actively tries to distinguish between
+  permanent and temporary name resolution problems by attempting to
+  resolve a number of test hostnames.
+
 Release 3.1 (2014-06-28)
 ========================
 
