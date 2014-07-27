@@ -21,6 +21,11 @@ Unreleased Changes
   permanent and temporary name resolution problems by attempting to
   resolve a number of test hostnames.
 
+* `HTTPConnection` has a new `~HTTPConnection.timeout`
+  attribute. Regular `HTTPConnection` methods (i.e., no coroutines)
+  will now raise `ConnectionTimedOut` if no data could be send or
+  received for *timeout* seconds.
+
 Release 3.1 (2014-06-28)
 ========================
 

@@ -698,6 +698,40 @@ def test_mutable_read(conn):
     assert conn.readall() == DUMMY_DATA[pos:512]
     assert not conn.response_pending()
 
+def test_recv_timeout(conn, monkeypatch):
+    conn.timeout = 1
+
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-Type", 'application/octet-stream')
+        self.send_header("Content-Length", '50')
+        self.end_headers()
+        self.wfile.write(b'x' * 25)
+        self.wfile.flush()
+    monkeypatch.setattr(MockRequestHandler, 'do_GET', do_GET)
+
+    conn.send_request('GET', '/send_something')
+    resp = conn.read_response()
+    assert resp.status == 200
+    assert conn.read(50) == b'x' * 25
+    assert_raises(dugong.ConnectionTimedOut, conn.read, 50)
+
+def test_send_timeout(conn, monkeypatch):
+    conn.timeout = 1
+
+    def do_PUT(self):
+        # Read just a tiny bit
+        self.rfile.read(256)
+    monkeypatch.setattr(MockRequestHandler, 'do_PUT', do_PUT)
+
+    # We don't know how much data can be buffered, so we
+    # claim to send a lot and do so in a loop.
+    len_ = 1024**3
+    conn.send_request('PUT', '/recv_something', body=BodyFollowing(len_))
+    with pytest.raises(dugong.ConnectionTimedOut):
+        while len_ > 0:
+            conn.write(b'x' * min(len_, 16*1024))
+
 
 DUMMY_DATA = ','.join(str(x) for x in range(10000)).encode()
 

@@ -191,6 +191,26 @@ to retry)::
           conn.disconnect()
 
 
+Timing out
+==========
+
+It can take quite a long time before the operation system recognises
+that a TCP/IP connection has been interrupted. If you'd rather be
+informed right away when there has been no data exchange for some
+period of time, dugong allows you to specify a custom timeout::
+
+  conn = HTTPConnection('www.python.org')
+  conn.timeout = 10
+  try:
+      conn.send_request('GET', '/index.html')
+      conn.read_response()
+      body = conn.readall()
+  except ConnectionTimedOut:
+      print('Unable to send or receive any data for more than',
+            conn.timeout, 'seconds, aborting.')
+      sys.exit(1)
+
+
 .. _pipelining:
 
 Pipelining with Threads

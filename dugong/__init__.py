@@ -236,6 +236,15 @@ class ConnectionClosed(_GeneralError):
     msg = 'connection closed unexpectedly'
 
 
+class ConnectionTimedOut(_GeneralError):
+    '''
+    Raised if a regular `HTTPConnection` method (i.e., no coroutine) was
+    unable to send or receive data for the timeout specified in the
+    `HTTPConnection.timeout` attribute.
+    '''
+
+    msg = 'send/recv timeout exceeded'
+
 class _Buffer:
     '''
     This class represents a buffer with a fixed size, but varying
@@ -361,6 +370,12 @@ class HTTPConnection:
         #: Transfer encoding of the active response (if any).
         self._encoding = None
 
+        #: If a regular `HTTPConnection` method is unable to send or receive
+        #: data for more than this period (in seconds), it will raise
+        #: `ConnectionTimedOut`. Coroutines are not affected by this
+        #: attribute.
+        self.timeout = None
+
     # Implement bare-bones `io.BaseIO` interface, so that instances
     # can be wrapped in `io.TextIOWrapper` if desired.
     def writable(self):
@@ -387,7 +402,7 @@ class HTTPConnection:
         if self.proxy:
             log.debug('connecting to %s', self.proxy)
             self._sock = socket.create_connection(self.proxy)
-            eval_coroutine(self._co_tunnel())
+            eval_coroutine(self._co_tunnel(), self.timeout)
         else:
             log.debug('connecting to %s', (self.hostname, self.port))
             self._sock = socket.create_connection((self.hostname, self.port))
@@ -458,7 +473,8 @@ class HTTPConnection:
     def send_request(self, method, path, headers=None, body=None, expect100=False):
         '''placeholder, will be replaced dynamically'''
         eval_coroutine(self.co_send_request(method, path, headers=headers,
-                                            body=body, expect100=expect100))
+                                            body=body, expect100=expect100),
+                       self.timeout)
 
     def co_send_request(self, method, path, headers=None, body=None, expect100=False):
         '''Send a new HTTP request to the server
@@ -599,7 +615,7 @@ class HTTPConnection:
 
     def write(self, buf):
         '''placeholder, will be replaced dynamically'''
-        eval_coroutine(self.co_write(buf))
+        eval_coroutine(self.co_write(buf), self.timeout)
 
     def co_write(self, buf):
         '''Write request body data
@@ -654,7 +670,7 @@ class HTTPConnection:
 
     def read_response(self):
         '''placeholder, will be replaced dynamically'''
-        return eval_coroutine(self.co_read_response())
+        return eval_coroutine(self.co_read_response(), self.timeout)
 
     def co_read_response(self):
         '''Read response status line and headers
@@ -835,7 +851,7 @@ class HTTPConnection:
         '''placeholder, will be replaced dynamically'''
         if len_ is None:
             return self.readall()
-        buf = eval_coroutine(self.co_read(len_))
+        buf = eval_coroutine(self.co_read(len_), self.timeout)
 
         # Some modules like TextIOWrapper unfortunately rely on read()
         # to return bytes, and do not accept bytearrays or memoryviews.
@@ -914,7 +930,7 @@ class HTTPConnection:
 
     def readinto(self, buf):
         '''placeholder, will be replaced dynamically'''
-        return eval_coroutine(self.co_readinto(buf))
+        return eval_coroutine(self.co_readinto(buf), self.timeout)
 
     def co_readinto(self, buf):
         '''Read response body data into *buf*
@@ -1216,7 +1232,7 @@ class HTTPConnection:
 
     def readall(self):
         '''placeholder, will be replaced dynamically'''
-        return eval_coroutine(self.co_readall())
+        return eval_coroutine(self.co_readall(), self.timeout)
 
     def co_readall(self):
         '''Read and return complete response body'''
@@ -1241,7 +1257,7 @@ class HTTPConnection:
 
     def discard(self):
         '''placeholder, will be replaced dynamically'''
-        return eval_coroutine(self.co_discard())
+        return eval_coroutine(self.co_discard(), self.timeout)
 
     def co_discard(self):
         '''Read and discard current response body'''
@@ -1325,13 +1341,18 @@ else:
     def _join(parts):
         return b''.join(parts)
 
-def eval_coroutine(crt):
-    '''Evaluate *crt* (polling as needed) and return its result'''
+def eval_coroutine(crt, timeout=None):
+    '''Evaluate *crt* (polling as needed) and return its result
+
+    If *timeout* seconds pass without being able to send or receive
+    anything, raises `ConnectionTimedOut`.
+    '''
 
     try:
         while True:
-            assert next(crt).poll()
             log.debug('polling')
+            if not next(crt).poll(timeout=timeout):
+                raise ConnectionTimedOut()
     except StopIteration as exc:
         return exc.value
 
@@ -1348,7 +1369,7 @@ def is_temp_network_error(exc):
 
     if isinstance(exc, (socket.timeout, ConnectionError, TimeoutError, InterruptedError,
                         ConnectionClosed, ssl.SSLZeroReturnError, ssl.SSLEOFError,
-                        ssl.SSLSyscallError)):
+                        ssl.SSLSyscallError, ConnectionTimedOut)):
         return True
 
     # The exception also unfortunately does not help us to distinguish between

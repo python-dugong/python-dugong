@@ -47,6 +47,8 @@ Exceptions
 .. autoexception:: StateError
    :members:
 
+.. autoexception:: ConnectionTimedOut
+   :members:
 
 Constants
 ---------
