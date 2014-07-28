@@ -761,7 +761,8 @@ class MockRequestHandler(BaseHTTPRequestHandler):
                 pass
             else:
                 raise
-        except BrokenPipeError:
+        # Linux generates BrokenPipeError, FreeBSD uses ConnectionResetError
+        except (BrokenPipeError, ConnectionResetError):
             pass
 
     def do_GET(self):
