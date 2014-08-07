@@ -1,5 +1,12 @@
 .. currentmodule:: dugong
 
+Unreleased Changes
+==================
+
+* It was possible for methods that need to read data from the server
+  to raise `AssertionError` in some circumstances. This has been
+  fixed.
+
 Release 3.2 (2014-07-27)
 ========================
 
