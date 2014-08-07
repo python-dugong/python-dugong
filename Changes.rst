@@ -3,6 +3,10 @@
 Unreleased Changes
 ==================
 
+* It was possible for some methods to raise `BrokenPipeError`, or
+  `ConnectionResetError` instead of `ConnectionClosed` (especially
+  under FreeBSD). This has now been fixed.
+
 * It was possible for methods that need to read data from the server
   to raise `AssertionError` in some circumstances. This has been
   fixed.

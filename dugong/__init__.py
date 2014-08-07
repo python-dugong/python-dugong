@@ -593,7 +593,7 @@ class HTTPConnection:
                 if self._sock is None:
                     raise ConnectionClosed('connection has been closed locally')
                 continue
-            except BrokenPipeError:
+            except (BrokenPipeError, ConnectionResetError):
                 raise ConnectionClosed('found closed when trying to write')
             except OSError as exc:
                 if exc.errno == errno.EINVAL:
@@ -1212,6 +1212,8 @@ class HTTPConnection:
         except (socket.timeout, ssl.SSLWantReadError, BlockingIOError):
             log.debug('done (nothing ready)')
             return None
+        except (ConnectionResetError, BrokenPipeError):
+            len_ = 0
 
         if not len_:
             raise ConnectionClosed('connection closed unexpectedly')
