@@ -1221,6 +1221,8 @@ class HTTPConnection:
         '''Make sure that there are at least *len_* bytes in buffer'''
 
         rbuf = self._rbuf
+        if len_ > len(rbuf.d):
+            raise ValueError('Requested more bytes than buffer has capacity')
         sock_fd = self._sock.fileno()
         while len(rbuf) < len_:
             if len(rbuf.d) - rbuf.b < len_:
