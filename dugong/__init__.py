@@ -975,9 +975,10 @@ class HTTPConnection:
         len_ = min(len_, self._in_remaining)
         log.debug('updated len_=%d', len_)
 
-        # Buffer might be empty, but have no capacity. This is handled
-        # in _try_fill_buffer(), but we have to take this into account
-        # in the while condition already.
+        # If buffer is empty, reset so that we start filling from
+        # beginning. This check is already done by _try_fill_buffer(), but we
+        # have to do it here or we never enter the while loop if the buffer
+        # is empty but has no capacity (rbuf.b == rbuf.e == len(rbuf.d))
         if rbuf.b == rbuf.e:
             rbuf.b = 0
             rbuf.e = 0
