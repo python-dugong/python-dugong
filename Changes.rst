@@ -1,7 +1,7 @@
 .. currentmodule:: dugong
 
-Unreleased Changes
-==================
+Release 3.3 (2014-08-06)
+========================
 
 * It was possible for some methods to raise `BrokenPipeError`, or
   `ConnectionResetError` instead of `ConnectionClosed` (especially
