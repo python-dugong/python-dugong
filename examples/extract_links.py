@@ -30,7 +30,11 @@ if os.path.exists(os.path.join(basedir, '.hg')):
 
 class LinkExtractor(HTMLParser):
     def __init__(self):
-        super().__init__(convert_charrefs=True)
+        if sys.version_info < (3,4):
+            # Python 3.3 doesn't know about convert_charrefs
+            super().__init__()
+        else:
+            super().__init__(convert_charrefs=True)
         self.links = []
 
     def handle_starttag(self, tag, attrs):

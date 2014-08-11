@@ -1,5 +1,12 @@
 .. currentmodule:: dugong
 
+Unreleased Changes
+==================
+
+* The :file:`examples/extract_links.py` script is now Python 3.3
+  compatible again.
+
+
 Release 3.3 (2014-08-06)
 ========================
 
