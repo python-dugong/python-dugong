@@ -726,11 +726,11 @@ def test_send_timeout(conn, monkeypatch):
 
     # We don't know how much data can be buffered, so we
     # claim to send a lot and do so in a loop.
-    len_ = 1024**3
+    len_ = 10 * 1024**3
     conn.send_request('PUT', '/recv_something', body=BodyFollowing(len_))
     with pytest.raises(dugong.ConnectionTimedOut):
         while len_ > 0:
-            conn.write(b'x' * min(len_, 16*1024))
+            conn.write(b'x' * min(len_, 640*1024))
 
 
 DUMMY_DATA = ','.join(str(x) for x in range(10000)).encode()
