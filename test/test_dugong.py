@@ -99,6 +99,12 @@ def conn(request, http_server):
     request.addfinalizer(conn.disconnect)
     return conn
 
+@pytest.fixture()
+def random_fh(request):
+    fh = open('/dev/urandom', 'rb')
+    request.addfinalizer(fh.close)
+    return fh
+
 def check_http_connection():
     '''Skip test if we can't connect to ssl test server'''
 
@@ -170,12 +176,12 @@ def test_ssl_info(conn):
     conn.get_ssl_cipher()
     conn.get_ssl_peercert()
 
-def test_blocking_send(conn):
+def test_blocking_send(conn, random_fh):
     # Send requests until we block because all TCP buffers are full
 
-    path = '/send_100_1200-byte_chunks'
+    path = '/send_102400_random_bytes'
     for count in itertools.count():
-        crt = conn.co_send_request('GET', path, body=DUMMY_DATA[:8192])
+        crt = conn.co_send_request('GET', path, body=random_fh.read(8192))
         flag = False
         for io_req in crt:
             if not io_req.poll(1):
@@ -539,8 +545,8 @@ def test_100cont_3(conn):
     conn.read_response()
     conn.readall()
 
-def test_aborted_write1(conn, monkeypatch):
-    BUFSIZE = 128*1024
+def test_aborted_write1(conn, monkeypatch, random_fh):
+    BUFSIZE = 64*1024
 
     # Monkeypatch request handler
     def do_PUT(self):
@@ -561,17 +567,16 @@ def test_aborted_write1(conn, monkeypatch):
 
     # Try to write data
     with pytest.raises(ConnectionClosed):
-        for _ in range(1000):
-            conn.write(b'f' * BUFSIZE)
-            time.sleep(0.1)
+        for _ in range(50):
+            conn.write(random_fh.read(BUFSIZE))
 
     # Nevertheless, try to read response
     resp = conn.read_response()
     assert resp.status == 401
     assert resp.reason == 'Please stop!'
 
-def test_aborted_write2(conn, monkeypatch):
-    BUFSIZE = 128*1024
+def test_aborted_write2(conn, monkeypatch, random_fh):
+    BUFSIZE = 64*1024
 
     # Monkeypatch request handler
     def do_PUT(self):
@@ -590,9 +595,8 @@ def test_aborted_write2(conn, monkeypatch):
 
     # Try to write data
     with pytest.raises(ConnectionClosed):
-        for _ in range(1000):
-            conn.write(b'f' * BUFSIZE)
-            time.sleep(0.1)
+        for _ in range(50):
+            conn.write(random_fh.read(BUFSIZE))
 
     # Nevertheless, try to read response
     assert_raises(ConnectionClosed, conn.read_response)
@@ -718,21 +722,26 @@ def test_recv_timeout(conn, monkeypatch):
     assert conn.read(50) == b'x' * 25
     assert_raises(dugong.ConnectionTimedOut, conn.read, 50)
 
-def test_send_timeout(conn, monkeypatch):
+def test_send_timeout(conn, monkeypatch, random_fh):
     conn.timeout = 1
 
     def do_PUT(self):
         # Read just a tiny bit
         self.rfile.read(256)
+
+        # We need to sleep, or the rest of the incoming data will
+        # be parsed as the next request.
+        time.sleep(2*conn.timeout)
+
     monkeypatch.setattr(MockRequestHandler, 'do_PUT', do_PUT)
 
     # We don't know how much data can be buffered, so we
     # claim to send a lot and do so in a loop.
-    len_ = 10 * 1024**3
+    len_ = 1024**3
     conn.send_request('PUT', '/recv_something', body=BodyFollowing(len_))
     with pytest.raises(dugong.ConnectionTimedOut):
         while len_ > 0:
-            conn.write(b'x' * min(len_, 640*1024))
+            conn.write(random_fh.read(min(len_, 16*1024)))
 
 
 DUMMY_DATA = ','.join(str(x) for x in range(10000)).encode()
@@ -744,6 +753,14 @@ class MockRequestHandler(BaseHTTPRequestHandler):
 
     def log_message(self, format, *args):
         pass
+
+    def setup(self):
+        super().setup()
+        self.random_fh = open('/dev/urandom', 'rb')
+
+    def finish(self):
+        super().finish()
+        self.random_fh.close()
 
     def handle_expect_100(self):
         if self.handle_errors():
@@ -784,14 +801,17 @@ class MockRequestHandler(BaseHTTPRequestHandler):
             self.wfile.close()
             return
 
-        hit = re.match(r'^/send_([0-9]+)_bytes', self.path)
+        hit = re.match(r'^/send_([0-9]+)_(random_)?bytes', self.path)
         if hit:
             len_ = int(hit.group(1))
             self.send_response(200)
             self.send_header("Content-Type", 'application/octet-stream')
             self.send_header("Content-Length", str(len_))
             self.end_headers()
-            self.wfile.write(DUMMY_DATA[:len_])
+            if hit.group(2):
+                self.wfile.write(self.random_fh.read(len_))
+            else:
+                self.wfile.write(DUMMY_DATA[:len_])
             return
 
         hit = re.match(r'^/send_([0-9]+)_([0-9]+)-byte_chunks(?:_delay_([0-9]+)_ms)?',
