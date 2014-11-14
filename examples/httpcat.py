@@ -7,6 +7,7 @@ import sys
 import os.path
 from io import TextIOWrapper
 import re
+from urllib.parse import urlsplit
 
 # We are running from the dugong source directory, make sure that we use modules
 # from this directory
@@ -25,12 +26,14 @@ if os.path.exists(os.path.join(basedir, '.hg')):
 
 from dugong import HTTPConnection, BUFFER_SIZE
 
-for url in sys.argv[1:]:
-    hit = re.match(r'http://([^/]+)(/.+)$', url)
-    assert hit
-    (host, path) = hit.groups()
+for arg in sys.argv[1:]:
+    url = urlsplit(arg)
+    assert url.scheme == 'http'
+    path = url.path
+    if url.query:
+        path += '?' + url.query
 
-    with HTTPConnection(host) as conn:
+    with HTTPConnection(url.hostname, url.port) as conn:
         conn.send_request('GET', path)
         resp = conn.read_response()
         if resp.status != 200:
