@@ -402,7 +402,8 @@ class HTTPConnection:
         if self.proxy:
             log.debug('connecting to %s', self.proxy)
             self._sock = socket.create_connection(self.proxy)
-            eval_coroutine(self._co_tunnel(), self.timeout)
+            if self.ssl_context:
+                eval_coroutine(self._co_tunnel(), self.timeout)
         else:
             log.debug('connecting to %s', (self.hostname, self.port))
             self._sock = socket.create_connection((self.hostname, self.port))
@@ -552,7 +553,11 @@ class HTTPConnection:
         headers['Accept-Encoding'] = 'identity'
         if 'Connection' not in headers:
             headers['Connection'] = 'keep-alive'
-        request = [ '{} {} HTTP/1.1'.format(method, path).encode('latin1') ]
+        if self.proxy and not self.ssl_context:
+            gpath = "http://{}{}".format(headers['Host'], path)
+        else:
+            gpath = path
+        request = [ '{} {} HTTP/1.1'.format(method, gpath).encode('latin1') ]
         for key, val in headers.items():
             request.append('{}: {}'.format(key, val).encode('latin1'))
         request.append(b'')
