@@ -116,7 +116,7 @@ def check_http_connection():
         conn = http.client.HTTPSConnection(SSL_TEST_HOST, context=ssl_context)
         conn.request('GET', '/')
         resp = conn.getresponse()
-        assert resp.status == 200
+        assert resp.status in (200, 301, 302)
     except:
         pytest.skip('%s not reachable but required for testing' % SSL_TEST_HOST)
     finally:
@@ -133,7 +133,7 @@ def test_connect_ssl():
     conn = HTTPConnection(SSL_TEST_HOST, ssl_context=ssl_context)
     conn.send_request('GET', '/')
     resp = conn.read_response()
-    assert resp.status == 200
+    assert resp.status in (200, 301, 302)
     assert resp.path == '/'
     conn.discard()
     conn.disconnect()
