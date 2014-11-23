@@ -6,6 +6,8 @@ Unreleased Changes
 * The :file:`examples/extract_links.py` script is now Python 3.3
   compatible again.
 
+* Dugong now has proper proxy support for plain HTTP
+  connections. Thanks to Vincent Bernat for the patch.
 
 Release 3.3 (2014-08-06)
 ========================
