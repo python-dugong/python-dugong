@@ -18,7 +18,10 @@ import subprocess
 import os
 import sys
 import pytest
-from urllib.request import build_opener, ProxyHandler, URLError
+import threading
+from http.server import SimpleHTTPRequestHandler
+from socketserver import TCPServer
+
 try:
     import asyncio
 except ImportError:
@@ -26,53 +29,52 @@ except ImportError:
 
 basename = os.path.join(os.path.dirname(__file__), '..')
 
-def check_url(url):
-    '''Skip test if *url* cannot be reached'''
+class HTTPRequestHandler(SimpleHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
 
-    # Examples ignore proxy settings, so should urllib
-    proxy_handler = ProxyHandler({})
-    opener = build_opener(proxy_handler)
+class HTTPServerThread(threading.Thread):
+    def __init__(self):
+        super().__init__()
+        self.host = 'localhost'
+        self.httpd = TCPServer((self.host, 0), HTTPRequestHandler)
+        self.port = self.httpd.socket.getsockname()[1]
+        self.url = 'http://%s:%d' % (self.host, self.port)
 
-    try:
-        resp = opener.open(url, None, 15)
-    except URLError:
-        pytest.skip('%s not reachable but required for testing' % url)
+    def run(self):
+        self.httpd.serve_forever()
 
-    if resp.status != 200:
-        pytest.skip('%s not reachable but required for testing' % url)
+    def shutdown(self):
+        self.httpd.shutdown()
+        self.httpd.server_close()
 
-    resp.close()
+@pytest.fixture(scope='module')
+def mock_server(request):
+    os.chdir(basename)
+    httpd = HTTPServerThread()
+    httpd.start()
+    request.addfinalizer(httpd.shutdown)
+    return httpd
 
-def test_httpcat():
-    url =  'http://docs.oracle.com/javaee/7/firstcup/doc/creating-example.htm'
-    check_url(url)
-    cmdline = [sys.executable,
-               os.path.join(basename, 'examples', 'httpcat.py'), url ]
-
+def test_httpcat(mock_server):
+    cmdline = [sys.executable, 'examples/httpcat.py',
+               mock_server.url + '/setup.py' ]
     with open('/dev/null', 'wb') as devnull:
         subprocess.check_call(cmdline, stdout=devnull)
 
-def test_extract_links():
-    url =  'http://docs.oracle.com/javaee/7/firstcup/doc/creating-example.htm'
-    check_url(url)
-    cmdline = [sys.executable,
-              os.path.join(basename, 'examples', 'extract_links.py'), url ]
-
+def test_extract_links(mock_server):
+    cmdline = [sys.executable, 'examples/extract_links.py',
+               mock_server.url + '/test/' ]
     with open('/dev/null', 'wb') as devnull:
         subprocess.check_call(cmdline, stdout=devnull)
 
 @pytest.mark.skipif(asyncio is None,
                     reason='asyncio module not available')
-def test_pipeline1():
-    cmdline = [sys.executable,
-              os.path.join(basename, 'examples', 'pipeline1.py') ]
-
-    for x in ('preface.htm', 'intro.htm', 'java-ee.htm',
-              'creating-example.htm', 'next-steps.htm',
-              'creating-example001.htm'):
-        url = 'http://docs.oracle.com/javaee/7/firstcup/doc/' + x
-        check_url(url)
-        cmdline.append(url)
+def test_pipeline1(mock_server):
+    cmdline = [sys.executable, 'examples/pipeline1.py' ]
+    for name in os.listdir('test'):
+        if os.path.isdir('test/'+name):
+            name += '/' # avoid redirect
+        cmdline.append('%s/test/%s' % (mock_server.url, name))
 
     with open('/dev/null', 'wb') as devnull:
         subprocess.check_call(cmdline, stdout=devnull)

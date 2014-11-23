@@ -26,10 +26,11 @@ for url in sys.argv[1:]:
     o = urlsplit(url)
     if hostname is None:
         hostname = o.hostname
-    elif hostname != o.hostname:
+        port = o.port
+    elif (hostname, port) != (o.hostname, o.port):
         raise SystemExit('Can only pipeline to one host')
-    if o.scheme != 'http' or o.port:
-        raise SystemExit('Can only do http to defaut port')
+    if o.scheme != 'http':
+        raise SystemExit('Can only do http')
     path_list.append(urlunsplit(('', '') + o[2:4] + ('',)))
 
 
@@ -44,7 +45,7 @@ from dugong import HTTPConnection, AioFuture
 loop = asyncio.get_event_loop()
 atexit.register(loop.close)
 
-with HTTPConnection(hostname) as conn:
+with HTTPConnection(hostname, port) as conn:
     # This generator function returns a coroutine that sends
     # all the requests.
     def send_requests():
