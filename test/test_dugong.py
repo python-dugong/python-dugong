@@ -762,6 +762,12 @@ class MockRequestHandler(BaseHTTPRequestHandler):
         super().finish()
         self.random_fh.close()
 
+    def parse_request(self):
+        # Proxy support, remove http://XXXXX from the beginning of the path
+        self.raw_requestline = re.sub(b'^([^ ]+)\\s+http://[^/]+', b'\\1 ',
+                                      self.raw_requestline)
+        return super().parse_request()
+
     def handle_expect_100(self):
         if self.handle_errors():
             return
