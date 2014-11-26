@@ -9,6 +9,10 @@ Unreleased Changes
 * Dugong now has proper proxy support for plain HTTP
   connections. Thanks to Vincent Bernat for the patch.
 
+* Dugong now raises `DNSUnavailable` or `HostnameNotResolvable`
+  exceptions instead of the more generic `socket.gaierror` and
+  `socket.herror` exceptions where possible.
+
 Release 3.3 (2014-08-06)
 ========================
 

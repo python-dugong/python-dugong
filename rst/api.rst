@@ -55,6 +55,12 @@ raised as well:
 .. autoexception:: ConnectionTimedOut
    :members:
 
+.. autoexception:: HostnameNotResolvable
+   :members:
+
+.. autoexception:: DNSUnavailable
+   :members:
+
 Constants
 ---------
 

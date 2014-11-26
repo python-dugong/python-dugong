@@ -58,7 +58,7 @@ IDENTITY_ENCODING = 'identity_encoding'
 WAITING_FOR_100c = object()
 
 #: Sequence of ``(hostname, port)`` tuples that are used by
-#: `is_temp_network_error` to distinguish between permanent and temporary name
+#: dugong to distinguish between permanent and temporary name
 #: resolution problems.
 DNS_TEST_HOSTNAMES=(('www.google.com', 80),
                     ('www.iana.org', 80),
@@ -185,6 +185,36 @@ class _GeneralError(Exception):
     def __str__(self):
         return self.msg
 
+class HostnameNotResolvable(Exception):
+    '''Raised if a host name does not resolve to an ip address.
+
+    Dugong raises this exception if a resolution attempt results in a
+    `socket.gaierror` or `socket.herror` exception with errno
+    :const:`!socket.EAI_AGAIN` or :const:`!socket.EAI_NONAME`, but at least one of
+    the hostnames in `DNS_TEST_HOSTNAMES` can be resolved.
+    '''
+
+    def __init__(self, hostname):
+        self.name = hostname
+
+    def __str__(self):
+        return 'Host %s does not have any ip addresses' % self.name
+
+
+class DNSUnavailable(Exception):
+    '''Raised if the DNS server cannot be reached.
+
+    Dugong raises this exception if a resolution attempt results in a
+    `socket.gaierror` or `socket.herror` exception with errno
+    :const:`!socket.EAI_AGAIN` or :const:`!socket.EAI_NONAME`, and none of the
+    hostnames in `DNS_TEST_HOSTNAMES` can be resolved either.
+    '''
+
+    def __init__(self, hostname):
+        self.name = hostname
+
+    def __str__(self):
+        return 'Unable to resolve %s, DNS server unavailable.' % self.name
 
 class StateError(_GeneralError):
     '''
@@ -401,12 +431,12 @@ class HTTPConnection:
 
         if self.proxy:
             log.debug('connecting to %s', self.proxy)
-            self._sock = socket.create_connection(self.proxy)
+            self._sock = create_socket(self.proxy)
             if self.ssl_context:
                 eval_coroutine(self._co_tunnel(), self.timeout)
         else:
             log.debug('connecting to %s', (self.hostname, self.port))
-            self._sock = socket.create_connection((self.hostname, self.port))
+            self._sock = create_socket((self.hostname, self.port))
 
         if self.ssl_context:
             log.debug('establishing ssl layer')
@@ -1368,35 +1398,68 @@ def eval_coroutine(crt, timeout=None):
     except StopIteration as exc:
         return exc.value
 
+def create_socket(address):
+    '''Create socket connected to *address**
+
+    Use `socket.create_connection` to create a connected socket and return
+    it. If a DNS related exception is raised, capture it and attempt to
+    determine if the dns server is not reachable, or if the host name could
+    not be resolved. Then raise either `NoSuchAddress` or
+    `NameResolutionError` as appropriate.
+
+    To distinguish between an unresolvable hostname and a problem with the
+    DNS server, attempt to resolve the addresses in `DNS_TEST_HOSTNAMES`. If
+    at least one test hostname can be resolved, assume that the DNS server
+    is available and that *address* can not be resolved.
+    '''
+
+    try:
+        return socket.create_connection(address)
+
+    # The exception unfortunately does not help us to distinguish between
+    # permanent and temporary problems. See:
+    # https://stackoverflow.com/questions/24855168/
+    # https://stackoverflow.com/questions/24855669/
+    except (socket.gaierror, socket.herror) as exc:
+        if exc.errno not in (socket.EAI_AGAIN, socket.EAI_NONAME):
+            raise
+
+    # Try to resolve test hosts
+    for (hostname, port) in DNS_TEST_HOSTNAMES:
+        try:
+            socket.getaddrinfo(hostname, port)
+        except (socket.gaierror, socket.herror) as exc:
+            if exc.errno not in (socket.EAI_AGAIN, socket.EAI_NONAME):
+                raise
+            # Not reachable, try next one
+        else:
+            # Reachable, now try to resolve original address
+            # again (maybe dns was only down briefly)
+            break
+    else:
+        # No host was reachable
+        raise DNSUnavailable(address[0])
+
+    # Try to connect to original host again
+    try:
+        return socket.create_connection(address)
+    except (socket.gaierror, socket.herror) as exc:
+        if exc.errno not in (socket.EAI_AGAIN, socket.EAI_NONAME):
+            raise
+        raise HostnameNotResolvable(address[0])
+
+
 def is_temp_network_error(exc):
     '''Return true if *exc* represents a potentially temporary network problem
 
-    For problems with name resolution, the exception generally does not contain
-    enough information to distinguish between an unresolvable hostname and a
-    problem with the DNS server. In this case, this function attempts to resolve
-    the addresses in `DNS_TEST_HOSTNAMES`. A name resolution problem is
-    considered permanent if at least one test hostname can be resolved, and
-    temporary if none of the test hostnames can be resolved.
+    DNS resolution errors (`socket.gaierror` or `socket.herror`) are considered
+    permanent, because `HTTPConnection` employs a heuristic to convert these
+    exceptions to `HostnameNotResolvable` or `DNSUnavailable` instead.
     '''
 
     if isinstance(exc, (socket.timeout, ConnectionError, TimeoutError, InterruptedError,
                         ConnectionClosed, ssl.SSLZeroReturnError, ssl.SSLEOFError,
-                        ssl.SSLSyscallError, ConnectionTimedOut)):
-        return True
-
-    # The exception also unfortunately does not help us to distinguish between
-    # permanent and temporary problems. See:
-    # https://stackoverflow.com/questions/24855168/
-    # https://stackoverflow.com/questions/24855669/
-    elif (isinstance(exc, (socket.gaierror, socket.herror))
-          and exc.errno in (socket.EAI_AGAIN, socket.EAI_NONAME)):
-        for (hostname, port) in DNS_TEST_HOSTNAMES:
-            try:
-                socket.getaddrinfo(hostname, port)
-            except (socket.gaierror, socket.herror):
-                pass
-            else:
-                return False
+                        ssl.SSLSyscallError, ConnectionTimedOut, DNSUnavailable)):
         return True
 
     return False

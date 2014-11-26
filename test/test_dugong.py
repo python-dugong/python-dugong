@@ -151,6 +151,20 @@ def test_invalid_ssl():
         conn.send_request('GET', '/')
     conn.disconnect()
 
+def test_dns_one(monkeypatch):
+    monkeypatch.setattr(dugong, 'DNS_TEST_HOSTNAMES',
+                        (('localhost', 80),))
+    with pytest.raises(dugong.HostnameNotResolvable):
+        conn = HTTPConnection('foobar.invalid')
+        conn.connect()
+
+def test_dns_two(monkeypatch):
+    monkeypatch.setattr(dugong, 'DNS_TEST_HOSTNAMES',
+                        (('grumpf.invalid', 80),))
+    with pytest.raises(dugong.DNSUnavailable):
+        conn = HTTPConnection('foobar.invalid')
+        conn.connect()
+
 def test_get_pipeline(conn):
 
     # We assume that internal buffers are big enough to hold

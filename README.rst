@@ -28,6 +28,9 @@ The Python Dugong module provides an API for communicating with HTTP
 - supports non-blocking, asynchronous operation and is compatible with
   the asyncio_ module.
 
+- can in most cases distinguish between an unavailable DNS server and
+  an unresolvable hostname.
+
 - is not compatible with old HTTP 0.9 or 1.0 servers.
 
 All request and response headers are represented as `str`, but must be
