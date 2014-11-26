@@ -32,6 +32,11 @@ Functions
 Exceptions
 ----------
 
+Dugong functions may pass through any exceptions raised by the
+:ref:`socket <socket-objects>` and `ssl.SSLSocket` methods. In
+addition to that, the following dugong-specific exceptions may be
+raised as well:
+
 .. autoexception:: ConnectionClosed
    :members:
 
