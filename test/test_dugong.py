@@ -78,7 +78,19 @@ class HTTPServerThread(threading.Thread):
         self.httpd.shutdown()
         self.httpd.server_close()
 
-@pytest.fixture(scope='module', params=('plain', 'ssl'))
+def pytest_generate_tests(metafunc):
+    if not 'http_server' in metafunc.fixturenames:
+        return
+
+    if getattr(metafunc.function, 'no_ssl', False):
+        params = ('plain',)
+    else:
+        params = ('plain', 'ssl')
+
+    metafunc.parametrize("http_server", params,
+                         indirect=True, scope='module')
+
+@pytest.fixture()
 def http_server(request):
     httpd = HTTPServerThread(use_ssl=(request.param == 'ssl'))
     httpd.start()
@@ -164,6 +176,102 @@ def test_dns_two(monkeypatch):
     with pytest.raises(dugong.DNSUnavailable):
         conn = HTTPConnection('foobar.invalid')
         conn.connect()
+
+@pytest.mark.parametrize('test_port', (None, 8080))
+@pytest.mark.no_ssl
+def test_http_proxy(http_server, monkeypatch, test_port):
+    test_host = 'www.foobarz.invalid'
+    test_path = '/someurl?barf'
+
+    get_path = None
+    def do_GET(self):
+        nonlocal get_path
+        get_path = self.path
+        self.send_response(200)
+        self.send_header("Content-Type", 'application/octet-stream')
+        self.send_header("Content-Length", '0')
+        self.end_headers()
+    monkeypatch.setattr(MockRequestHandler, 'do_GET', do_GET)
+
+    conn = HTTPConnection(test_host, test_port,
+                          proxy=(http_server.host, http_server.port))
+    try:
+        conn.send_request('GET', test_path)
+        resp = conn.read_response()
+        assert resp.status == 200
+        conn.discard()
+    finally:
+        conn.disconnect()
+
+    if test_port is None:
+        exp_path = 'http://%s%s' % (test_host, test_path)
+    else:
+        exp_path = 'http://%s:%d%s' % (test_host, test_port, test_path)
+
+    assert get_path == exp_path
+
+class FakeSSLSocket:
+    def __init__(self, socket):
+        self.socket = socket
+
+    def getpeercert(self):
+        return None
+
+    def __getattr__(self, name):
+        return getattr(self.socket, name)
+
+class FakeSSLContext:
+    def wrap_socket(self, socket, server_hostname):
+        return FakeSSLSocket(socket)
+    def __bool__(self):
+        return True
+
+@pytest.mark.parametrize('test_port', (None, 8080))
+@pytest.mark.no_ssl
+def test_connect_proxy(http_server, monkeypatch, test_port):
+    test_host = 'www.foobarz.invalid'
+    test_path = '/someurl?barf'
+
+    connect_path = None
+    def do_CONNECT(self):
+        # Pretend we're the remote server too
+        nonlocal connect_path
+        connect_path = self.path
+        self.send_response(200)
+        self.end_headers()
+        self.close_connection = 0
+    monkeypatch.setattr(MockRequestHandler, 'do_CONNECT',
+                        do_CONNECT, raising=False)
+
+    get_path = None
+    def do_GET(self):
+        nonlocal get_path
+        get_path = self.path
+        self.send_response(200)
+        self.send_header("Content-Type", 'application/octet-stream')
+        self.send_header("Content-Length", '0')
+        self.end_headers()
+    monkeypatch.setattr(MockRequestHandler, 'do_GET', do_GET)
+
+    # We don't *actually* want to establish SSL, that'd be
+    # to complex for our mock server
+    monkeypatch.setattr('ssl.match_hostname', lambda x,y: True)
+    conn = HTTPConnection(test_host, test_port,
+                          proxy=(http_server.host, http_server.port),
+                          ssl_context=FakeSSLContext())
+    try:
+        conn.send_request('GET', test_path)
+        resp = conn.read_response()
+        assert resp.status == 200
+        conn.discard()
+    finally:
+        conn.disconnect()
+
+    if test_port is None:
+        test_port = 443
+    exp_path = '%s:%d' % (test_host, test_port)
+    assert connect_path == exp_path
+    assert get_path == test_path
 
 def test_get_pipeline(conn):
 
@@ -615,19 +723,6 @@ def test_aborted_write2(conn, monkeypatch, random_fh):
     # Nevertheless, try to read response
     assert_raises(ConnectionClosed, conn.read_response)
 
-def test_tunnel(http_server):
-    if http_server.use_ssl:
-        pytest.skip('test does not have ssl support yet')
-
-    conn = HTTPConnection('remote_server', proxy=(http_server.host, http_server.port))
-
-    conn.send_request('GET', '/send_10_bytes')
-    resp = conn.read_response()
-    assert resp.status == 200
-    assert resp.path == '/send_10_bytes'
-    assert conn.readall() == DUMMY_DATA[:10]
-    conn.disconnect()
-
 def test_read_toomuch(conn):
     conn.send_request('GET', '/send_10_bytes')
     conn.send_request('GET', '/send_8_bytes')
@@ -776,12 +871,6 @@ class MockRequestHandler(BaseHTTPRequestHandler):
         super().finish()
         self.random_fh.close()
 
-    def parse_request(self):
-        # Proxy support, remove http://XXXXX from the beginning of the path
-        self.raw_requestline = re.sub(b'^([^ ]+)\\s+http://[^/]+', b'\\1 ',
-                                      self.raw_requestline)
-        return super().parse_request()
-
     def handle_expect_100(self):
         if self.handle_errors():
             return
@@ -898,12 +987,6 @@ class MockRequestHandler(BaseHTTPRequestHandler):
 
         self.send_header('Content-Length', '0')
         self.end_headers()
-
-    def do_CONNECT(self):
-        # Just pretend we're the remote server too
-        self.send_response(200)
-        self.end_headers()
-        self.close_connection = 0
 
     def do_HEAD(self):
         if self.handle_errors():
