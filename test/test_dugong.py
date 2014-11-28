@@ -111,7 +111,7 @@ def conn(request, http_server):
     request.addfinalizer(conn.disconnect)
     return conn
 
-@pytest.fixture()
+@pytest.fixture(scope='module')
 def random_fh(request):
     fh = open('/dev/urandom', 'rb')
     request.addfinalizer(fh.close)
@@ -273,8 +273,36 @@ def test_connect_proxy(http_server, monkeypatch, test_port):
     assert connect_path == exp_path
     assert get_path == test_path
 
-def test_get_pipeline(conn):
+def get_chunked_GET_handler(path, chunks, delay=None):
+    '''Return GET handler for *path* sending *chunks* of data'''
 
+    def do_GET(self):
+        if self.path != path:
+            self.send_error(500, 'Assertion failure: %s != %s'
+                            % (self.path, path))
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", 'application/octet-stream')
+        self.send_header("Transfer-Encoding", 'chunked')
+        self.end_headers()
+        for (i, chunk_size) in enumerate(chunks):
+            if i % 3 == 0 and delay:
+                time.sleep(delay*1e-3)
+            self.wfile.write(('%x\r\n' % chunk_size).encode('us-ascii'))
+            if i % 3 == 1 and delay:
+                self.wfile.write(DUMMY_DATA[:chunk_size//2])
+                time.sleep(delay*1e-3)
+                self.wfile.write(DUMMY_DATA[chunk_size//2:chunk_size])
+            else:
+                self.wfile.write(DUMMY_DATA[:chunk_size])
+            if i % 3 == 2 and delay:
+                time.sleep(delay*1e-3)
+            self.wfile.write(b'\r\n')
+            self.wfile.flush()
+        self.wfile.write(b'0\r\n\r\n')
+    return do_GET
+
+def test_get_pipeline(conn):
     # We assume that internal buffers are big enough to hold
     # a few requests
 
@@ -298,12 +326,23 @@ def test_ssl_info(conn):
     conn.get_ssl_cipher()
     conn.get_ssl_peercert()
 
-def test_blocking_send(conn, random_fh):
+def test_blocking_send(conn, random_fh, monkeypatch):
     # Send requests until we block because all TCP buffers are full
 
-    path = '/send_102400_random_bytes'
+    out_len = 102400
+    in_len = 8192
+    path = '/buo?com'
+    def do_GET(self):
+        self.rfile.read(in_len)
+        self.send_response(200)
+        self.send_header("Content-Type", 'application/octet-stream')
+        self.send_header("Content-Length", str(out_len))
+        self.end_headers()
+        self.wfile.write(random_fh.read(out_len))
+    monkeypatch.setattr(MockRequestHandler, 'do_GET', do_GET)
+
     for count in itertools.count():
-        crt = conn.co_send_request('GET', path, body=random_fh.read(8192))
+        crt = conn.co_send_request('GET', path, body=random_fh.read(in_len))
         flag = False
         for io_req in crt:
             if not io_req.poll(1):
@@ -329,10 +368,16 @@ def test_blocking_send(conn, random_fh):
     assert resp.status == 200
     conn.discard()
 
-def test_blocking_read(conn):
+def test_blocking_read(conn, monkeypatch):
+    path = '/foo/wurfl'
+    chunks = [120] * 10
     delay = 10
+
     while True:
-        conn.send_request('GET', '/send_10_120-byte_chunks_delay_%d_ms' % delay)
+        monkeypatch.setattr(MockRequestHandler, 'do_GET',
+                            get_chunked_GET_handler(path, chunks, delay))
+        conn.send_request('GET', path)
+
         resp = conn.read_response()
         assert resp.status == 200
 
@@ -352,27 +397,34 @@ def test_blocking_read(conn):
                 parts.append(buf)
         assert not conn.response_pending()
 
-        assert _join(parts) == DUMMY_DATA[:120]*10
+        assert _join(parts) == b''.join(DUMMY_DATA[:x] for x in chunks)
         if interrupted >= 8:
             break
         elif delay > 5000:
             pytest.fail('no blocking read even with %f sec sleep' % delay)
         delay *= 2
 
-def test_discard(conn):
-    conn.send_request('GET', '/send_512_bytes')
+def test_discard(conn, monkeypatch):
+    data_len = 512
+    path = '/send_%d_bytes' % data_len
+    conn.send_request('GET', path)
     resp = conn.read_response()
     assert resp.status == 200
-    assert resp.path == '/send_512_bytes'
-    assert resp.length == 512
+    assert resp.path == path
+    assert resp.length == data_len
     conn.discard()
     assert not conn.response_pending()
 
-def test_discard_chunked(conn):
-    conn.send_request('GET', '/send_4_512-byte_chunks')
+def test_discard_chunked(conn, monkeypatch):
+    path = '/foo/wurfl'
+    chunks = [512, 312, 837, 361]
+    monkeypatch.setattr(MockRequestHandler, 'do_GET',
+                        get_chunked_GET_handler(path, chunks))
+
+    conn.send_request('GET', path)
     resp = conn.read_response()
     assert resp.status == 200
-    assert resp.path == '/send_4_512-byte_chunks'
+    assert resp.path == path
     assert resp.length is None
     conn.discard()
     assert not conn.response_pending()
@@ -414,10 +466,8 @@ def test_read_identity(conn):
     assert conn.readall() == DUMMY_DATA[:512]
     assert not conn.response_pending()
 
+@pytest.mark.no_ssl
 def test_exhaust_buffer(conn):
-    if conn.ssl_context:
-        pytest.skip('test does not have ssl support yet')
-
     conn._rbuf = dugong._Buffer(600)
     conn.send_request('GET', '/send_512_bytes')
     conn.read_response()
@@ -434,10 +484,8 @@ def test_exhaust_buffer(conn):
     assert buf == DUMMY_DATA[:len(buf)]
     assert conn.readall() == DUMMY_DATA[len(buf):512]
 
+@pytest.mark.no_ssl
 def test_full_buffer(conn):
-    if conn.ssl_context:
-        pytest.skip('test does not have ssl support yet')
-
     conn._rbuf = dugong._Buffer(100)
     conn.send_request('GET', '/send_512_bytes')
     conn.read_response()
@@ -469,28 +517,42 @@ def test_readinto_identity(conn):
     assert _join(parts) == DUMMY_DATA[:512]
     assert not conn.response_pending()
 
-def test_read_chunked(conn):
-    conn.send_request('GET', '/send_3_300-byte_chunks')
+def test_read_chunked(conn, monkeypatch):
+    path = '/foo/wurfl'
+    chunks = [300, 283, 377]
+    monkeypatch.setattr(MockRequestHandler, 'do_GET',
+                        get_chunked_GET_handler(path, chunks))
+    conn.send_request('GET', path)
     resp = conn.read_response()
     assert resp.status == 200
+    assert resp.path == path
     assert resp.length is None
-    assert conn.readall() == DUMMY_DATA[:300]*3
+    assert conn.readall() == b''.join(DUMMY_DATA[:x] for x in chunks)
     assert not conn.response_pending()
 
-def test_read_chunked2(conn):
-    conn.send_request('GET', '/send_10_5-byte_chunks')
+def test_read_chunked2(conn, monkeypatch):
+    path = '/foo/wurfl'
+    chunks = [5] * 10
+    monkeypatch.setattr(MockRequestHandler, 'do_GET',
+                        get_chunked_GET_handler(path, chunks))
+    conn.send_request('GET', path)
     resp = conn.read_response()
     assert resp.status == 200
     assert resp.length is None
-    assert conn.readall() == DUMMY_DATA[:5]*10
+    assert resp.path == path
+    assert conn.readall() == b''.join(DUMMY_DATA[:x] for x in chunks)
     assert not conn.response_pending()
 
-def test_readinto_chunked(conn):
-    conn.send_request('GET', '/send_3_300-byte_chunks')
+def test_readinto_chunked(conn, monkeypatch):
+    path = '/foo/wurfl'
+    chunks = [300, 317, 283]
+    monkeypatch.setattr(MockRequestHandler, 'do_GET',
+                        get_chunked_GET_handler(path, chunks))
+    conn.send_request('GET', path)
     resp = conn.read_response()
     assert resp.status == 200
     assert resp.length is None
-    assert resp.path == '/send_3_300-byte_chunks'
+    assert resp.path == path
     parts = []
     while True:
         buf = bytearray(600)
@@ -498,7 +560,7 @@ def test_readinto_chunked(conn):
         if not len_:
             break
         parts.append(buf[:len_])
-    assert _join(parts) == DUMMY_DATA[:300] * 3
+    assert _join(parts) == b''.join(DUMMY_DATA[:x] for x in chunks)
     assert not conn.response_pending()
 
 def test_double_read(conn):
@@ -510,8 +572,17 @@ def test_double_read(conn):
     with pytest.raises(dugong.StateError):
         resp = conn.read_response()
 
-def test_read_raw(conn):
-    conn.send_request('GET', '/send_unsupported')
+def test_read_raw(conn, monkeypatch):
+    path = '/ooops'
+    def do_GET(self):
+        assert self.path == path
+        self.send_response(200)
+        self.send_header("Content-Type", 'application/octet-stream')
+        self.end_headers()
+        self.wfile.write(b'body data')
+        self.wfile.close()
+    monkeypatch.setattr(MockRequestHandler, 'do_GET', do_GET)
+    conn.send_request('GET', path)
     resp = conn.read_response()
     assert resp.status == 200
     with pytest.raises(dugong.UnsupportedResponse):
@@ -519,19 +590,27 @@ def test_read_raw(conn):
     assert conn.read_raw(512) == b'body data'
     assert conn.read_raw(512) == b''
 
-def test_abort_read(conn):
-    conn.send_request('GET', '/send_3_300-byte_chunks')
+def test_abort_read(conn, monkeypatch):
+    path = '/foo/wurfl'
+    chunks = [300, 317, 283]
+    monkeypatch.setattr(MockRequestHandler, 'do_GET',
+                        get_chunked_GET_handler(path, chunks))
+    conn.send_request('GET', path)
     resp = conn.read_response()
     assert resp.status == 200
     conn.read(200)
     conn.disconnect()
     assert_raises(dugong.ConnectionClosed, conn.read, 200)
 
-def test_abort_co_read(conn):
+def test_abort_co_read(conn, monkeypatch):
     # We need to delay the write to ensure that we encounter a blocking read
+    path = '/foo/wurfl'
+    chunks = [300, 317, 283]
     delay = 10
     while True:
-        conn.send_request('GET', '/send_3_300-byte_chunks_delay_%d_ms' % delay)
+        monkeypatch.setattr(MockRequestHandler, 'do_GET',
+                            get_chunked_GET_handler(path, chunks, delay))
+        conn.send_request('GET', path)
         resp = conn.read_response()
         assert resp.status == 200
         cofun = conn.co_read(450)
@@ -632,14 +711,36 @@ def test_put_separate(conn):
     assert resp.status == 400
     assert resp.reason.startswith('MD5 mismatch')
 
-def test_100cont(conn):
-    conn.send_request('PUT', '/fail_with_403', body=BodyFollowing(256),
+def test_100cont(conn, monkeypatch):
+
+    path = '/check_this_out'
+    def handle_expect_100(self):
+        if self.path != path:
+            self.send_error(500, 'Assertion error, %s != %s'
+                            % (self.path, path))
+        else:
+            self.send_error(403)
+    monkeypatch.setattr(MockRequestHandler, 'handle_expect_100',
+                        handle_expect_100)
+
+    conn.send_request('PUT', path, body=BodyFollowing(256),
                       expect100=True)
     resp = conn.read_response()
     assert resp.status == 403
     conn.discard()
 
-    conn.send_request('PUT', '/all_good', body=BodyFollowing(256), expect100=True)
+    def handle_expect_100(self):
+        if self.path != path:
+            self.send_error(500, 'Assertion error, %s != %s'
+                            % (self.path, path))
+            return
+
+        self.send_response_only(100)
+        self.end_headers()
+        return True
+    monkeypatch.setattr(MockRequestHandler, 'handle_expect_100',
+                        handle_expect_100)
+    conn.send_request('PUT', path, body=BodyFollowing(256), expect100=True)
     resp = conn.read_response()
     assert resp.status == 100
     assert resp.length == 0
@@ -648,7 +749,11 @@ def test_100cont(conn):
     assert resp.status == 204
     assert resp.length == 0
 
-def test_100cont_2(conn):
+def test_100cont_2(conn, monkeypatch):
+    def handle_expect_100(self):
+        self.send_error(403)
+    monkeypatch.setattr(MockRequestHandler, 'handle_expect_100',
+                        handle_expect_100)
     conn.send_request('PUT', '/fail_with_403', body=BodyFollowing(256),
                       expect100=True)
 
@@ -658,7 +763,11 @@ def test_100cont_2(conn):
     conn.read_response()
     conn.readall()
 
-def test_100cont_3(conn):
+def test_100cont_3(conn, monkeypatch):
+    def handle_expect_100(self):
+        self.send_error(403)
+    monkeypatch.setattr(MockRequestHandler, 'handle_expect_100',
+                        handle_expect_100)
     conn.send_request('PUT', '/fail_with_403', body=BodyFollowing(256), expect100=True)
 
     with pytest.raises(dugong.StateError):
@@ -670,14 +779,13 @@ def test_100cont_3(conn):
 def test_aborted_write1(conn, monkeypatch, random_fh):
     BUFSIZE = 64*1024
 
-    # Monkeypatch request handler
+    # monkeypatch request handler
     def do_PUT(self):
         # Read half the data, then generate error and
         # close connection
         self.rfile.read(BUFSIZE)
         self.send_error(code=401, message='Please stop!')
         self.close_connection = True
-
     monkeypatch.setattr(MockRequestHandler, 'do_PUT', do_PUT)
 
     # Send request
@@ -700,12 +808,11 @@ def test_aborted_write1(conn, monkeypatch, random_fh):
 def test_aborted_write2(conn, monkeypatch, random_fh):
     BUFSIZE = 64*1024
 
-    # Monkeypatch request handler
+    # monkeypatch request handler
     def do_PUT(self):
         # Read half the data, then silently close connection
         self.rfile.read(BUFSIZE)
         self.close_connection = True
-
     monkeypatch.setattr(MockRequestHandler, 'do_PUT', do_PUT)
 
     # Send request
@@ -760,12 +867,15 @@ def test_empty_response(conn):
     assert conn.readall() == DUMMY_DATA[:512]
     assert not conn.response_pending()
 
-def test_head(conn):
+def test_head(conn, monkeypatch):
     conn.send_request('HEAD', '/send_10_bytes')
     resp = conn.read_response()
     assert resp.status == 200
     assert len(conn.readall()) == 0
 
+    def do_HEAD(self):
+        self.send_error(317)
+    monkeypatch.setattr(MockRequestHandler, 'do_HEAD', do_HEAD)
     conn.send_request('HEAD', '/fail_with_317')
     resp = conn.read_response()
     assert resp.status == 317
@@ -841,7 +951,6 @@ def test_send_timeout(conn, monkeypatch, random_fh):
         # We need to sleep, or the rest of the incoming data will
         # be parsed as the next request.
         time.sleep(2*conn.timeout)
-
     monkeypatch.setattr(MockRequestHandler, 'do_PUT', do_PUT)
 
     # We don't know how much data can be buffered, so we
@@ -863,22 +972,6 @@ class MockRequestHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         pass
 
-    def setup(self):
-        super().setup()
-        self.random_fh = open('/dev/urandom', 'rb')
-
-    def finish(self):
-        super().finish()
-        self.random_fh.close()
-
-    def handle_expect_100(self):
-        if self.handle_errors():
-            return
-        else:
-            self.send_response_only(100)
-            self.end_headers()
-            return True
-
     def handle(self):
         # Ignore exceptions resulting from the client closing
         # the connection.
@@ -894,82 +987,23 @@ class MockRequestHandler(BaseHTTPRequestHandler):
             pass
 
     def do_GET(self):
-        if self.handle_errors():
-            return
-
         len_ = int(self.headers['Content-Length'])
         if len_:
             self.rfile.read(len_)
 
-        hit = re.match(r'^/send_unsupported', self.path)
-        if hit:
-            self.send_response(200)
-            self.send_header("Content-Type", 'application/octet-stream')
-            self.end_headers()
-            self.wfile.write(b'body data')
-            self.wfile.close()
-            return
-
-        hit = re.match(r'^/send_([0-9]+)_(random_)?bytes', self.path)
+        hit = re.match(r'^/send_([0-9]+)_bytes', self.path)
         if hit:
             len_ = int(hit.group(1))
-            self.send_response(200)
-            self.send_header("Content-Type", 'application/octet-stream')
-            self.send_header("Content-Length", str(len_))
-            self.end_headers()
-            if hit.group(2):
-                self.wfile.write(self.random_fh.read(len_))
-            else:
-                self.wfile.write(DUMMY_DATA[:len_])
-            return
-
-        hit = re.match(r'^/send_([0-9]+)_([0-9]+)-byte_chunks(?:_delay_([0-9]+)_ms)?',
-                       self.path)
-        if hit:
-            count = int(hit.group(1))
-            len_ = int(hit.group(2))
-            delay = hit.group(3)
-            delay = int(delay)*1e-3 if delay else 0
-            self.send_response(200)
-            self.send_header("Content-Type", 'application/octet-stream')
-            self.send_header("Transfer-Encoding", 'chunked')
-            self.end_headers()
-            data = DUMMY_DATA[:len_]
-            for i in range(count):
-                if i % 3 == 0 and delay:
-                    time.sleep(delay)
-                self.wfile.write(('%x\r\n' % len_).encode('us-ascii'))
-                if i % 3 == 1 and delay:
-                    self.wfile.write(data[:len_//2])
-                    time.sleep(delay)
-                    self.wfile.write(data[len_//2:])
-                else:
-                    self.wfile.write(data)
-                if i % 3 == 2 and delay:
-                    time.sleep(delay)
-                self.wfile.write(b'\r\n')
-                self.wfile.flush()
-            self.wfile.write(b'0\r\n\r\n')
+            self.do_HEAD()
+            self.wfile.write(DUMMY_DATA[:len_])
             return
 
         self.send_error(500)
 
-    def handle_errors(self):
-        hit = re.match(r'^/fail_with_([0-9]+)', self.path)
-        if hit:
-            self.send_error(int(hit.group(1)))
-            return True
-
-        if self.command == 'PUT':
-            encoding = self.headers['Content-Encoding']
-            if encoding and encoding != 'identity':
-                self.send_error(415)
-                return True
-
-        return False
-
     def do_PUT(self):
-        if self.handle_errors():
+        encoding = self.headers['Content-Encoding']
+        if encoding and encoding != 'identity':
+            self.send_error(415)
             return
 
         len_ = int(self.headers['Content-Length'])
@@ -989,9 +1023,6 @@ class MockRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_HEAD(self):
-        if self.handle_errors():
-            return
-
         hit = re.match(r'^/send_([0-9]+)_bytes', self.path)
         if hit:
             len_ = int(hit.group(1))
