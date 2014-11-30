@@ -1462,6 +1462,19 @@ def is_temp_network_error(exc):
                         ssl.SSLSyscallError, ConnectionTimedOut, DNSUnavailable)):
         return True
 
+    elif isinstance(exc, OSError):
+        # We have to be careful when retrieving errno codes, because
+        # not all of them may exist on every platform.
+        for errcode in ('EHOSTDOWN', 'EHOSTUNREACH', 'ENETDOWN',
+                        'ENETRESET', 'ENETUNREACH', 'ENOLINK',
+                        'ENONET', 'ENOTCONN', 'ENXIO', 'EPIPE',
+                        'EREMCHG', 'ESHUTDOWN', 'ETIMEDOUT'):
+            try:
+                if getattr(errno, errcode) == exc.errno:
+                    return True
+            except AttributeError:
+                pass
+
     return False
 
 

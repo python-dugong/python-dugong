@@ -1,5 +1,12 @@
 .. currentmodule:: dugong
 
+Unreleased Changes
+==================
+
+* The `is_temp_network_error` function now knows about more kinds of
+  temporary errors, in particular also about those that do not have a
+  corresponding Python exception (e.g. no route to host).
+
 Release 3.4 (2014-11-29)
 ========================
 
