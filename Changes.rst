@@ -1,7 +1,7 @@
 .. currentmodule:: dugong
 
-Unreleased Changes
-==================
+Release 3.5 (2015-01-31)
+========================
 
 * The `is_temp_network_error` function now knows about more kinds of
   temporary errors, in particular also about those that do not have a
