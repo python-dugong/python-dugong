@@ -61,7 +61,7 @@ Getting Help
 The documentation can be `read online`__ and is also included in the
 *doc/html* directory of the dugong tarball.
 
-Please report any bugs on the `issue tracker`_. For discussion and
+Please report any bugs on the `BitBucket issue tracker`_. For discussion and
 questions, please subscribe to the `dugong mailing list`_.
 
 Development Status
@@ -72,7 +72,7 @@ the other.
 
 .. __: http://pythonhosted.org/dugong/
 .. _dugong mailing list: https://groups.google.com/d/forum/python-dugong
-.. _issue tracker: https://bitbucket.org/nikratio/python-dugong/issues
+.. _`BitBucket issue tracker`: https://bitbucket.org/nikratio/python-dugong/issues
 .. _py.test: http://www.pytest.org/
 .. _asyncio: http://docs.python.org/3.4/library/asyncio.html
 
