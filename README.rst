@@ -40,6 +40,8 @@ objects`_ or binary streams.
 Dugong requires Python 3.3 or newer.
 
 .. _`bytes-like objects`: http://docs.python.org/3/glossary.html#term-bytes-like-object
+.. _asyncio: http://docs.python.org/3.4/library/asyncio.html
+
 
 Installation
 ============
@@ -52,8 +54,9 @@ To run the self-tests, install `py.test`_ and run ::
 
   # py.test-3 test/
 
-
 .. _PyPi: https://pypi.python.org/pypi/dugong/#downloads
+.. _py.test: http://www.pytest.org/
+
 
 Getting Help
 ============
@@ -64,15 +67,22 @@ The documentation can be `read online`__ and is also included in the
 Please report any bugs on the `BitBucket issue tracker`_. For discussion and
 questions, please subscribe to the `dugong mailing list`_.
 
+.. __: http://pythonhosted.org/dugong/
+.. _dugong mailing list: https://groups.google.com/d/forum/python-dugong
+.. _`BitBucket issue tracker`: https://bitbucket.org/nikratio/python-dugong/issues
+
+
 Development Status
 ==================
 
 The Dugong API is not yet stable and may change from one release to
 the other.
 
-.. __: http://pythonhosted.org/dugong/
-.. _dugong mailing list: https://groups.google.com/d/forum/python-dugong
-.. _`BitBucket issue tracker`: https://bitbucket.org/nikratio/python-dugong/issues
-.. _py.test: http://www.pytest.org/
-.. _asyncio: http://docs.python.org/3.4/library/asyncio.html
 
+Contributing
+============
+
+The LLFUSE source code is available both on GitHub_ and BitBucket_.
+
+.. _BitBucket: https://bitbucket.org/nikratio/python-dugong/
+.. _GitHub: https://github.com/python-dugong/main
