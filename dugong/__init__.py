@@ -1,7 +1,7 @@
 '''
 dugong.py - Python HTTP Client Module
 
-Copyright (C) Nikolaus Rath <Nikolaus@rath.org>
+Copyright © 2014 Nikolaus Rath <Nikolaus.org>
 
 This module may be distributed under the terms of the Python Software Foundation
 License Version 2.
