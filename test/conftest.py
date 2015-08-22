@@ -47,6 +47,14 @@ def pytest_configure(config):
             os.path.exists(os.path.join(basedir, 'dugong', '__init__.py'))):
             sys.path.insert(0, basedir)
 
+        # Make sure that called processes use the same path
+        pp = os.environ.get('PYTHONPATH', None)
+        if pp:
+            pp = '%s:%s' % (basedir, pp)
+        else:
+            pp = basedir
+        os.environ['PYTHONPATH'] = pp
+
     # When running from VCS repo, enable all warnings
     if os.path.exists(os.path.join(basedir, 'MANIFEST.in')):
         import warnings

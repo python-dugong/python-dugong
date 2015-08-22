@@ -11,15 +11,15 @@ from urllib.parse import urlsplit, urljoin, urlunsplit
 import re
 import ssl
 
-# We are running from the dugong source directory, make sure that we use modules
-# from this directory
+# We are running from the dugong source directory, append it to module path so
+# that we can fallback on it if dugong hasn't been installed yet.
 if __name__ == '__main__':
     basedir = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), '..'))
 else:
     basedir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if (os.path.exists(os.path.join(basedir, 'setup.py')) and
     os.path.exists(os.path.join(basedir, 'dugong', '__init__.py'))):
-    sys.path.insert(0, basedir)
+    sys.path.append(basedir)
 
 from dugong import HTTPConnection
 
@@ -98,4 +98,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
