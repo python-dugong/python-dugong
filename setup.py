@@ -2,6 +2,7 @@
 
 import sys
 import os.path
+import warnings
 
 try:
     import setuptools
@@ -14,6 +15,12 @@ if sys.version_info < (3,3):
                      % sys.version_info[:3])
 
 basedir = os.path.abspath(os.path.dirname(sys.argv[0]))
+if os.path.exists(os.path.join(basedir, 'MANIFEST.in')):
+    print('found MANIFEST.in, running in developer mode')
+    warnings.resetwarnings()
+    # We can't use `error`, because e.g. Sphinx triggers a
+    # DeprecationWarning.
+    warnings.simplefilter('default')
 
 def main():
     try:
