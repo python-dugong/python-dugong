@@ -47,8 +47,8 @@ def pytest_configure(config):
             os.path.exists(os.path.join(basedir, 'dugong', '__init__.py'))):
             sys.path.insert(0, basedir)
 
-    # When running from HG repo, enable all warnings
-    if os.path.exists(os.path.join(basedir, '.hg')):
+    # When running from VCS repo, enable all warnings
+    if os.path.exists(os.path.join(basedir, 'MANIFEST.in')):
         import warnings
         warnings.resetwarnings()
         warnings.simplefilter('error')
