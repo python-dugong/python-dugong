@@ -49,6 +49,7 @@ def main():
           packages=setuptools.find_packages(),
           url='https://bitbucket.org/nikratio/python-dugong',
           classifiers=['Programming Language :: Python :: 3',
+                       'Development Status :: 5 - Production/Stable',
                        'Intended Audience :: Developers',
                        'License :: OSI Approved :: Python Software Foundation License',
                        'Topic :: Internet :: WWW/HTTP',
