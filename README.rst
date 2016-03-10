@@ -76,7 +76,12 @@ Development Status
 ==================
 
 The Dugong API is not yet stable and may change from one release to
-the other.
+the other. Starting with version 3.5, Dugong uses semantic
+versioning. This means changes in the API will be reflected in an
+increase of the major version number, i.e. the next
+backwards-incompatible version will be 4.0. Projects designed for
+e.g. version 3.5 of Dugong are thus recommended to declare a
+dependency on ``dugong >= 3.5, < 4.0``.
 
 
 Contributing
