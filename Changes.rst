@@ -1,13 +1,15 @@
 .. currentmodule:: dugong
 
-Unreleased Changes
-==================
+Release 3.6 (2016-04-23)
+========================
 
 * Dugong now uses semantic versioning. This means that
   backwards-incompatible versions (i.e., versions that change the
   existing API in some way) will be reflected in an increase of the
   major version number, i.e. the next backwards-incompatible version
   will have version 4.0.
+
+* Various minor bugfixes.
 
 Release 3.5 (2015-01-31)
 ========================
