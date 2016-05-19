@@ -50,12 +50,14 @@ As usual: download the tarball from PyPi_, extract it, and run ::
 
   # python3 setup.py install [--user]
 
-To run the self-tests, install `py.test`_ and run ::
+To run the self-tests, install `py.test`_ with the `pytest-catchlog`_
+plugin and run ::
 
-  # py.test-3 test/
+  # python3 -m pytest test/
 
 .. _PyPi: https://pypi.python.org/pypi/dugong/#downloads
 .. _py.test: http://www.pytest.org/
+.. _pytest-catchlog: https://github.com/eisensheng/pytest-catchlog
 
 
 Getting Help
