@@ -1,5 +1,11 @@
 .. currentmodule:: dugong
 
+Unreleased Changes
+==================
+
+* Dugong now honors the `~ssl.SSLContext.check_hostname` attribute of
+  `~ssl.SSLContext` objects.
+
 Release 3.6 (2016-04-23)
 ========================
 

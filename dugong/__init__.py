@@ -440,14 +440,24 @@ class HTTPConnection:
 
         if self.ssl_context:
             log.debug('establishing ssl layer')
-            server_hostname = self.hostname if ssl.HAS_SNI else None
+            if (sys.version_info >= (3, 5) or
+                (sys.version_info >= (3, 4) and ssl.HAS_SNI)):
+                # Automatic hostname verification was added in 3.4, but only
+                # if SNI is available. In 3.5 the hostname can be checked even
+                # if there is no SNI support.
+                server_hostname = self.hostname
+            else:
+                server_hostname = None
             self._sock = self.ssl_context.wrap_socket(self._sock, server_hostname=server_hostname)
 
-            try:
-                ssl.match_hostname(self._sock.getpeercert(), self.hostname)
-            except:
-                self.close()
-                raise
+            if server_hostname is None:
+                # Manually check hostname for Python < 3.4, or if we have
+                # 3.4 without SNI.
+                try:
+                    ssl.match_hostname(self._sock.getpeercert(), self.hostname)
+                except:
+                    self.close()
+                    raise
 
         self._sock.setblocking(False)
         self._rbuf.clear()
