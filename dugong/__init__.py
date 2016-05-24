@@ -33,6 +33,11 @@ try:
 except ImportError:
     asyncio = None
 
+# Enums are only available in 3.4 and newer
+try:
+    from enum import Enum
+except ImportError:
+    Enum = object
 
 __version__ = '3.6'
 
@@ -50,8 +55,9 @@ MAX_LINE_SIZE = BUFFER_SIZE-1
 #: this value, `InvalidResponse` will be raised.
 MAX_HEADER_SIZE = BUFFER_SIZE-1
 
-CHUNKED_ENCODING = 'chunked_encoding'
-IDENTITY_ENCODING = 'identity_encoding'
+class Encodings(Enum):
+    CHUNKED = 1
+    IDENTITY = 2
 
 #: Marker object for request body size when we're waiting
 #: for a 100-continue response from the server
@@ -789,7 +795,7 @@ class HTTPConnection:
             tc = tc.lower()
         if tc and tc == 'chunked':
             log.debug('Chunked encoding detected')
-            self._encoding = CHUNKED_ENCODING
+            self._encoding = Encodings.CHUNKED
             self._in_remaining = 0
         elif tc and tc != 'identity':
             # Server must not sent anything other than identity or chunked, so
@@ -800,7 +806,7 @@ class HTTPConnection:
             self._encoding = InvalidResponse('Cannot handle %s encoding' % tc)
         else:
             log.debug('identity encoding detected')
-            self._encoding = IDENTITY_ENCODING
+            self._encoding = Encodings.IDENTITY
 
         # does the body have a fixed length? (of zero)
         if (status == NO_CONTENT or status == NOT_MODIFIED or
@@ -811,7 +817,7 @@ class HTTPConnection:
             self._pending_requests.popleft()
 
         # Chunked doesn't require content-length
-        elif self._encoding is CHUNKED_ENCODING:
+        elif self._encoding is Encodings.CHUNKED:
             pass
 
         # Otherwise we require a content-length. We defer raising the exception
@@ -925,9 +931,9 @@ class HTTPConnection:
         if len_ == 0 or self._in_remaining is None:
             return b''
 
-        if self._encoding is IDENTITY_ENCODING:
+        if self._encoding is Encodings.IDENTITY:
             return (yield from self._co_read_id(len_))
-        elif self._encoding is CHUNKED_ENCODING:
+        elif self._encoding is Encodings.CHUNKED:
             return (yield from self._co_read_chunked(len_=len_))
         elif isinstance(self._encoding, Exception):
             raise self._encoding
@@ -994,9 +1000,9 @@ class HTTPConnection:
         if len(buf) == 0 or self._in_remaining is None:
             return 0
 
-        if self._encoding is IDENTITY_ENCODING:
+        if self._encoding is Encodings.IDENTITY:
             return (yield from self._co_readinto_id(buf))
-        elif self._encoding is CHUNKED_ENCODING:
+        elif self._encoding is Encodings.CHUNKED:
             return (yield from self._co_read_chunked(buf=buf))
         elif isinstance(self._encoding, Exception):
             raise self._encoding
