@@ -1126,6 +1126,8 @@ class HTTPConnection:
                 raise ConnectionClosed('connection has been closed locally')
             try:
                 read = self._sock.recv_into(buf[pos:len_])
+            except (ConnectionResetError, BrokenPipeError):
+                raise ConnectionClosed('connection was interrupted')
             except (socket.timeout, ssl.SSLWantReadError, BlockingIOError):
                 if pos:
                     log.debug('done (nothing more to read, got %d bytes)', pos)
