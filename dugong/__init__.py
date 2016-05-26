@@ -672,7 +672,7 @@ class HTTPConnection:
                 yield PollNeeded(self._sock.fileno(), POLLOUT)
                 continue
             except (BrokenPipeError, ConnectionResetError):
-                raise ConnectionClosed('found closed when trying to write')
+                raise ConnectionClosed('connection was interrupted')
             except OSError as exc:
                 if exc.errno == errno.EINVAL:
                     # Blackhole routing, according to ip(7)
@@ -1071,7 +1071,7 @@ class HTTPConnection:
                     log.debug('buffer empty and nothing to read, yielding..')
                     yield PollNeeded(self._sock.fileno(), POLLIN)
             elif got_data == 0:
-                raise ConnectionClosed('connection closed unexpectedly')
+                raise ConnectionClosed('server closed connection')
 
         len_ = min(len_, len(rbuf))
         self._in_remaining -= len_
@@ -1138,7 +1138,7 @@ class HTTPConnection:
                     continue
 
             if not read:
-                raise ConnectionClosed('connection closed unexpectedly')
+                raise ConnectionClosed('server closed connection')
 
             log.debug('got %d bytes', read)
             self._in_remaining -= read
@@ -1247,7 +1247,7 @@ class HTTPConnection:
                     log.debug('need more data, yielding')
                     yield PollNeeded(self._sock.fileno(), POLLIN)
                 elif res == 0:
-                    raise ConnectionClosed('connection closed unexpectedly')
+                    raise ConnectionClosed('server closed connection')
                 else:
                     break
 
@@ -1295,7 +1295,7 @@ class HTTPConnection:
             log.debug('done (nothing ready)')
             return None
         except (ConnectionResetError, BrokenPipeError):
-            raise ConnectionClosed('connection closed unexpectedly')
+            raise ConnectionClosed('connection was interrupted')
 
         rbuf.e += len_
         log.debug('done (got %d bytes)', len_)
@@ -1314,7 +1314,7 @@ class HTTPConnection:
             if res is None:
                 yield PollNeeded(self._sock.fileno(), POLLIN)
             elif res == 0:
-                raise ConnectionClosed('connection closed unexpectedly')
+                raise ConnectionClosed('server closed connection')
 
     def readall(self):
         '''placeholder, will be replaced dynamically'''
