@@ -797,57 +797,73 @@ class HTTPConnection:
         #
         # Prepare to read body
         #
-        body_length = None
+        body_length = self._setup_read(method, status, header)
 
-        tc = header['Transfer-Encoding']
-        if tc:
-            tc = tc.lower()
-        if tc and tc == 'chunked':
-            log.debug('Chunked encoding detected')
-            self._encoding = Encodings.CHUNKED
-            self._in_remaining = 0
-        elif tc and tc != 'identity':
-            # Server must not sent anything other than identity or chunked, so
-            # we raise InvalidResponse rather than UnsupportedResponse. We defer
-            # raising the exception to read(), so that we can still return the
-            # headers and status (and don't fail if the response body is empty).
-            log.warning('Server uses invalid response encoding "%s"', tc)
-            self._encoding = InvalidResponse('Cannot handle %s encoding' % tc)
-        else:
-            log.debug('identity encoding detected')
-            self._encoding = Encodings.IDENTITY
+        # Don't require calls to co_read() et al if there is
+        # nothing to be read.
+        if self._in_remaining is None:
+            self._pending_requests.popleft()
 
-        # does the body have a fixed length? (of zero)
+        log.debug('done (in_remaining=%s)', self._in_remaining)
+        return HTTPResponse(method, path, status, reason, header, body_length)
+
+    def _setup_read(self, method, status, header):
+        '''Prepare for reading response body
+
+        Sets up `._encoding`, `_in_remaining` and returns Content-Length
+        (if available).
+
+        See RFC 2616, sec. 4.4 for specific rules.
+        '''
+
+        # On error, the exception is stored in _encoding and raised on
+        # the next call to co_read() et al - that way we can still
+        # return the http status and headers. This means that when
+        # there is an error, we must set _in_remaining something
+        # not None even if there is no body data.
+
+        body_length = header['Content-Length']
+        if body_length is not None:
+            try:
+                body_length = int(body_length)
+            except ValueError:
+                self._encoding = InvalidResponse('Invalid content-length: %s'
+                                                 % body_length)
+                self._in_remaining = 0
+                return None
+
         if (status == NO_CONTENT or status == NOT_MODIFIED or
             100 <= status < 200 or method == 'HEAD'):
             log.debug('no content by RFC')
-            body_length = 0
             self._in_remaining = None
-            self._pending_requests.popleft()
+            self._encoding = None
+            return 0
 
-        # Chunked doesn't require content-length
-        elif self._encoding is Encodings.CHUNKED:
-            pass
-
-        # Otherwise we require a content-length. We defer raising the exception
-        # to read(), so that we can still return the headers and status.
-        elif ('Content-Length' not in header
-              and not isinstance(self._encoding, InvalidResponse)):
-            log.debug('no content length and no chunkend encoding, will raise on read')
-            self._encoding = UnsupportedResponse('No content-length and no chunked encoding')
+        tc = header.get('Transfer-Encoding', 'identity').lower()
+        if tc == 'chunked':
+            log.debug('Chunked encoding detected')
+            self._encoding = Encodings.CHUNKED
             self._in_remaining = 0
+            return None
 
-        else:
-            body_length = int(header['Content-Length'])
-            if body_length:
-                self._in_remaining = body_length
-            else:
-                self._in_remaining = None
-                self._pending_requests.popleft()
+        elif tc != 'identity':
+            log.warning('Server uses invalid response encoding "%s"', tc)
+            self._encoding = InvalidResponse('Cannot handle %s encoding' % tc)
+            self._in_remaining = 0
+            return None
 
-        log.debug('done (in_remaining=%s)', self._in_remaining)
+        log.debug('identity encoding detected')
+        self._encoding = Encodings.IDENTITY
 
-        return HTTPResponse(method, path, status, reason, header, body_length)
+        if body_length is not None:
+            log.debug('Will read response body of %d bytes', body_length)
+            self._in_remaining = body_length or None
+            return body_length
+
+        log.debug('no content length and no chunkend encoding, will raise on read')
+        self._encoding = UnsupportedResponse('No content-length and no chunked encoding')
+        self._in_remaining = 0
+        return None
 
     def _co_read_status(self):
         '''Read response line'''
