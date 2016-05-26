@@ -1065,12 +1065,15 @@ class HTTPConnection:
         # and buffer is not full
         while len(rbuf) < len_ and rbuf.e < len(rbuf.d):
             got_data = self._try_fill_buffer()
-            if not got_data and not rbuf:
-                log.debug('buffer empty and nothing to read, yielding..')
-                yield PollNeeded(self._sock.fileno(), POLLIN)
-            elif not got_data:
-                log.debug('nothing more to read')
-                break
+            if got_data is None:
+                if rbuf:
+                    log.debug('nothing more to read')
+                    break
+                else:
+                    log.debug('buffer empty and nothing to read, yielding..')
+                    yield PollNeeded(self._sock.fileno(), POLLIN)
+            elif got_data == 0:
+                raise ConnectionClosed('connection closed unexpectedly')
 
         len_ = min(len_, len(rbuf))
         self._in_remaining -= len_
@@ -1242,9 +1245,15 @@ class HTTPConnection:
                 maxsize -= len(buf)
 
             # Refill buffer
-            while not self._try_fill_buffer():
-                log.debug('need more data, yielding')
-                yield PollNeeded(self._sock.fileno(), POLLIN)
+            while True:
+                res = self._try_fill_buffer()
+                if res is None:
+                    log.debug('need more data, yielding')
+                    yield PollNeeded(self._sock.fileno(), POLLIN)
+                elif res == 0:
+                    raise ConnectionClosed('connection closed unexpectedly')
+                else:
+                    break
 
         log.debug('found substr at %d', idx)
         idx += len(substr)
@@ -1263,8 +1272,11 @@ class HTTPConnection:
     def _try_fill_buffer(self):
         '''Try to fill up read buffer
 
-        Returns the number of bytes read into buffer, or `None` if no
-        data was available on the socket. May raise `ConnectionClosed`.
+        Returns the number of bytes read into buffer, or `None` if no data was
+        available on the socket. Return zero if the TCP connection has been
+        properly closed but the socket object still exists. On other problems
+        (e.g. if the socket object has been destroyed or the connection
+        interrupted), raise `ConnectionClosed`.
         '''
 
         log.debug('start')
@@ -1287,9 +1299,6 @@ class HTTPConnection:
             log.debug('done (nothing ready)')
             return None
         except (ConnectionResetError, BrokenPipeError):
-            len_ = 0
-
-        if not len_:
             raise ConnectionClosed('connection closed unexpectedly')
 
         rbuf.e += len_
@@ -1305,8 +1314,11 @@ class HTTPConnection:
         while len(rbuf) < len_:
             if len(rbuf.d) - rbuf.b < len_:
                 self._rbuf.compact()
-            if not self._try_fill_buffer():
+            res = self._try_fill_buffer()
+            if res is None:
                 yield PollNeeded(self._sock.fileno(), POLLIN)
+            elif res == 0:
+                raise ConnectionClosed('connection closed unexpectedly')
 
     def readall(self):
         '''placeholder, will be replaced dynamically'''
