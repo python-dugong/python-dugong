@@ -55,13 +55,30 @@ MAX_LINE_SIZE = BUFFER_SIZE-1
 #: this value, `InvalidResponse` will be raised.
 MAX_HEADER_SIZE = BUFFER_SIZE-1
 
+class Symbol:
+    '''
+    A symbol instance represents a specific state. Its value is
+    not relevant, as it should only ever be assigned to or compared
+    with other variables.
+    '''
+    __slots__ = [ 'name' ]
+
+    def __init__(self, name):
+        self.name = name
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return '<%s>' % (self.name,)
+
 class Encodings(Enum):
     CHUNKED = 1
     IDENTITY = 2
 
 #: Marker object for request body size when we're waiting
 #: for a 100-continue response from the server
-WAITING_FOR_100c = object()
+WAITING_FOR_100c = Symbol('WAITING_FOR_100c')
 
 #: Sequence of ``(hostname, port)`` tuples that are used by
 #: dugong to distinguish between permanent and temporary name
