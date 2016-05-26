@@ -76,9 +76,15 @@ class Encodings(Enum):
     CHUNKED = 1
     IDENTITY = 2
 
-#: Marker object for request body size when we're waiting
-#: for a 100-continue response from the server
+#: Sentinel for `HTTPConnection._out_remaining` to indicate that
+#: we're waiting for a 100-continue response from the server
 WAITING_FOR_100c = Symbol('WAITING_FOR_100c')
+
+#: Sentinel for `HTTPConnection._in_remaining` to indicate that
+#: the response body cannot be read and that an exception
+#: (stored in the `HTTPConnection._encoding` attribute) should
+#: be raised.
+RESPONSE_BODY_ERROR = Symbol('RESPONSE_BODY_ERROR')
 
 #: Sequence of ``(hostname, port)`` tuples that are used by
 #: dugong to distinguish between permanent and temporary name
@@ -419,7 +425,7 @@ class HTTPConnection:
         #: request headers have been sent, but request body data is still
         #: pending, it is set to a ``(method, path, body_len)`` tuple. *body_len*
         #: is the number of bytes that that still need to send, or
-        #: WAITING_FOR_100c if we are waiting for a 100 response from the server.
+        #: `WAITING_FOR_100c` if we are waiting for a 100 response from the server.
         self._out_remaining = None
 
         #: Number of remaining bytes of the current response body (or current
@@ -835,7 +841,7 @@ class HTTPConnection:
             except ValueError:
                 self._encoding = InvalidResponse('Invalid content-length: %s'
                                                  % body_length)
-                self._in_remaining = 0
+                self._in_remaining = RESPONSE_BODY_ERROR
                 return None
 
         if (status == NO_CONTENT or status == NOT_MODIFIED or
@@ -855,7 +861,7 @@ class HTTPConnection:
         elif tc != 'identity':
             log.warning('Server uses invalid response encoding "%s"', tc)
             self._encoding = InvalidResponse('Cannot handle %s encoding' % tc)
-            self._in_remaining = 0
+            self._in_remaining = RESPONSE_BODY_ERROR
             return None
 
         log.debug('identity encoding detected')
@@ -868,7 +874,7 @@ class HTTPConnection:
 
         log.debug('no content length and no chunkend encoding, will raise on read')
         self._encoding = UnsupportedResponse('No content-length and no chunked encoding')
-        self._in_remaining = 0
+        self._in_remaining = RESPONSE_BODY_ERROR
         return None
 
     def _co_read_status(self):
@@ -953,18 +959,16 @@ class HTTPConnection:
 
         log.debug('start (len=%d)', len_)
 
-        if len_ is None:
+        if self._in_remaining is RESPONSE_BODY_ERROR:
+            raise self._encoding
+        elif len_ is None:
             return (yield from self.co_readall())
-
-        if len_ == 0 or self._in_remaining is None:
+        elif len_ == 0 or self._in_remaining is None:
             return b''
-
-        if self._encoding is Encodings.IDENTITY:
+        elif self._encoding is Encodings.IDENTITY:
             return (yield from self._co_read_id(len_))
         elif self._encoding is Encodings.CHUNKED:
             return (yield from self._co_read_chunked(len_=len_))
-        elif isinstance(self._encoding, Exception):
-            raise self._encoding
         else:
             raise RuntimeError('ooops, this should not be possible')
 
@@ -1022,15 +1026,14 @@ class HTTPConnection:
 
         log.debug('start (buflen=%d)', len(buf))
 
-        if len(buf) == 0 or self._in_remaining is None:
+        if self._in_remaining is RESPONSE_BODY_ERROR:
+            raise self._encoding
+        elif len(buf) == 0 or self._in_remaining is None:
             return 0
-
-        if self._encoding is Encodings.IDENTITY:
+        elif self._encoding is Encodings.IDENTITY:
             return (yield from self._co_readinto_id(buf))
         elif self._encoding is Encodings.CHUNKED:
             return (yield from self._co_read_chunked(buf=buf))
-        elif isinstance(self._encoding, Exception):
-            raise self._encoding
         else:
             raise RuntimeError('ooops, this should not be possible')
 
