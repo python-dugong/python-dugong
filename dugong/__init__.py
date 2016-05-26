@@ -1154,10 +1154,6 @@ class HTTPConnection:
         a `bytes-like object`. If *buf* is not `None`, reads data into *buf*.
         '''
 
-        # TODO: In readinto mode, we always need an extra sock.recv()
-        # to get the chunk trailer.. is there some way to avoid that? And
-        # maybe also put the beginning of the next chunk into the read buffer right away?
-
         log.debug('start (%s mode)', 'readinto' if buf else 'read')
         assert (len_ is None) != (buf is None)
         assert bool(len_) or bool(buf)
