@@ -1250,9 +1250,8 @@ class HTTPConnection:
             rbuf.b = 0
             rbuf.e = 0
 
-        # If no capacity, return
-        if rbuf.e == len(rbuf.d):
-            return 0
+        # There should be free capacity
+        assert rbuf.e < len(rbuf.d)
 
         if self._sock is None:
             raise ConnectionClosed('connection has been closed locally')
