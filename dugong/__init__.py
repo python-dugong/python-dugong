@@ -167,7 +167,13 @@ class HTTPResponse:
         #: HTTP Response headers, a `email.message.Message` instance
         self.headers = headers
 
-        #: Length of the response body or `None`, if not known
+        #: Length of the response body or `None` if not known. This attribute
+        #: contains the actual length of the *transmitted* response. That means
+        #: that for responses where RFC 2616 mandates that no request body
+        #: be sent (e.g. in response to HEAD requests or for 1xx response
+        #: codes) this value is zero. In these cases, the length of the body that
+        #: *would* have been send can be extracted from the ``Content-Length``
+        #: response header.
         self.length = length
 
 
