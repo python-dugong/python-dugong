@@ -830,9 +830,7 @@ class HTTPConnection:
 
         # On error, the exception is stored in _encoding and raised on
         # the next call to co_read() et al - that way we can still
-        # return the http status and headers. This means that when
-        # there is an error, we must set _in_remaining something
-        # not None even if there is no body data.
+        # return the http status and headers.
 
         body_length = header['Content-Length']
         if body_length is not None:
