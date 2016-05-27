@@ -466,6 +466,123 @@ def test_read_identity(conn):
     assert conn.readall() == DUMMY_DATA[:512]
     assert not conn.response_pending()
 
+def test_conn_close_1(conn, monkeypatch):
+    # Regular read
+    data_size = 500
+    conn._rbuf = dugong._Buffer(int(4/5*data_size))
+
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-Type", 'application/octet-stream')
+        self.send_header("Connection", 'close')
+        self.end_headers()
+        self.wfile.write(DUMMY_DATA[:data_size])
+        self.rfile.close()
+        self.wfile.close()
+    monkeypatch.setattr(MockRequestHandler, 'do_GET', do_GET)
+
+    conn.send_request('GET', '/whatever')
+    resp = conn.read_response()
+    assert resp.status == 200
+    assert conn.readall() == DUMMY_DATA[:data_size]
+
+    with pytest.raises(ConnectionClosed):
+        conn.send_request('GET', '/whatever')
+        conn.read_response()
+
+def test_conn_close_2(conn, monkeypatch):
+    # Readinto
+    data_size = 500
+    conn._rbuf = dugong._Buffer(int(4/5*data_size))
+
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-Type", 'application/octet-stream')
+        self.send_header("Connection", 'close')
+        self.end_headers()
+        self.wfile.write(DUMMY_DATA[:data_size])
+        self.rfile.close()
+        self.wfile.close()
+    monkeypatch.setattr(MockRequestHandler, 'do_GET', do_GET)
+
+    conn.send_request('GET', '/whatever')
+    resp = conn.read_response()
+    assert resp.status == 200
+    buf = memoryview(bytearray(2*data_size))
+    got = conn.readinto(buf)
+    got += conn.readinto(buf[got:])
+    assert got == data_size
+    assert buf[:data_size] == DUMMY_DATA[:data_size]
+    assert conn.readinto(buf[got:]) == 0
+
+    with pytest.raises(ConnectionClosed):
+        conn.send_request('GET', '/whatever')
+        conn.read_response()
+
+def test_conn_close_3(conn, monkeypatch):
+    # Server keeps reading
+    data_size = 500
+    conn._rbuf = dugong._Buffer(int(4/5*data_size))
+
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-Type", 'application/octet-stream')
+        self.send_header("Connection", 'close')
+        self.end_headers()
+        self.wfile.write(DUMMY_DATA[:data_size])
+        self.wfile.close()
+    monkeypatch.setattr(MockRequestHandler, 'do_GET', do_GET)
+
+    conn.send_request('GET', '/whatever')
+    resp = conn.read_response()
+    assert resp.status == 200
+    assert conn.readall() == DUMMY_DATA[:data_size]
+
+    conn.send_request('GET', '/whatever')
+    assert_raises(ConnectionClosed, conn.read_response)
+
+def test_conn_close_4(conn, monkeypatch):
+    # Content-Length should take precedence
+    data_size = 500
+    conn._rbuf = dugong._Buffer(int(4/5*data_size))
+
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-Type", 'application/octet-stream')
+        self.send_header("Content-Length", str(data_size))
+        self.send_header("Connection", 'close')
+        self.end_headers()
+        self.wfile.write(DUMMY_DATA[:data_size+10])
+        self.wfile.close()
+    monkeypatch.setattr(MockRequestHandler, 'do_GET', do_GET)
+
+    conn.send_request('GET', '/whatever')
+    resp = conn.read_response()
+    assert resp.status == 200
+    assert conn.readall() == DUMMY_DATA[:data_size]
+
+def test_conn_close_5(conn, monkeypatch):
+    # Pipelining
+    data_size = 500
+    conn._rbuf = dugong._Buffer(int(4/5*data_size))
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-Type", 'application/octet-stream')
+        self.send_header("Content-Length", str(data_size))
+        self.send_header("Connection", 'close')
+        self.end_headers()
+        self.wfile.write(DUMMY_DATA[:data_size])
+        self.wfile.close()
+        self.rfile.close()
+    monkeypatch.setattr(MockRequestHandler, 'do_GET', do_GET)
+
+    conn.send_request('GET', '/whatever_one')
+    conn.send_request('GET', '/whatever_two')
+    resp = conn.read_response()
+    assert resp.status == 200
+    assert conn.readall() == DUMMY_DATA[:data_size]
+    assert_raises(dugong.ConnectionClosed, conn.read_response)
+
 @pytest.mark.no_ssl
 def test_exhaust_buffer(conn):
     conn._rbuf = dugong._Buffer(600)

@@ -3,6 +3,10 @@
 Unreleased Changes
 ==================
 
+* Dugong now supports server responses that specify just ``Connection:
+  close`` instead of providing the response length or using chunked
+  encoding.
+
 * Dugong now honors the `~ssl.SSLContext.check_hostname` attribute of
   `~ssl.SSLContext` objects.
 

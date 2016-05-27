@@ -86,6 +86,10 @@ WAITING_FOR_100c = Symbol('WAITING_FOR_100c')
 #: be raised.
 RESPONSE_BODY_ERROR = Symbol('RESPONSE_BODY_ERROR')
 
+#: Sentinel for `HTTPConnection._in_remaining` to indicate that
+#: we should read until EOF (i.e., no keep-alive)
+READ_UNTIL_EOF = Symbol('READ_UNTIL_EOF')
+
 #: Sequence of ``(hostname, port)`` tuples that are used by
 #: dugong to distinguish between permanent and temporary name
 #: resolution problems.
@@ -295,7 +299,18 @@ class UnsupportedResponse(_GeneralError):
 
 class ConnectionClosed(_GeneralError):
     '''
-    Raised if the server unexpectedly closed the connection.
+    Raised if the connection was unexpectedly closed.
+
+    This exception is raised also if the server declared that it will close the
+    connection (by sending a ``Connection: close`` header). Such responses can
+    still be read completely, but the next attempt to send a request or read a
+    response will raise the exception. To re-use the connection after the server
+    has closed the connection, call `HTTPConnection.reset` before further
+    requests are send.
+
+    This behavior is intentional, because the caller may have already issued
+    other requests (i.e., used pipelining). By raising an exception, the caller
+    is notified that any pending requests have been lost and need to be resend.
     '''
 
     msg = 'connection closed unexpectedly'
@@ -429,7 +444,9 @@ class HTTPConnection:
         self._out_remaining = None
 
         #: Number of remaining bytes of the current response body (or current
-        #: chunk), or `None` if there is no active response
+        #: chunk), `None` if there is no active response or `READ_UNTIL_EOF` if
+        #: we have to read until the connection is closed (i.e., we don't know
+        #: the content-length and keep-alive is not active).
         self._in_remaining = None
 
         #: Transfer encoding of the active response (if any).
@@ -832,6 +849,8 @@ class HTTPConnection:
         # the next call to co_read() et al - that way we can still
         # return the http status and headers.
 
+        will_close = header.get('Connection', 'keep-alive').lower() == 'close'
+
         body_length = header['Content-Length']
         if body_length is not None:
             try:
@@ -870,7 +889,12 @@ class HTTPConnection:
             self._in_remaining = body_length or None
             return body_length
 
-        log.debug('no content length and no chunkend encoding, will raise on read')
+        if will_close:
+            log.debug('no content-length, will read until EOF')
+            self._in_remaining = READ_UNTIL_EOF
+            return None
+
+        log.debug('no content length and no chunked encoding, will raise on read')
         self._encoding = UnsupportedResponse('No content-length and no chunked encoding')
         self._in_remaining = RESPONSE_BODY_ERROR
         return None
@@ -1048,7 +1072,8 @@ class HTTPConnection:
             return b''
 
         rbuf = self._rbuf
-        len_ = min(len_, self._in_remaining)
+        if self._in_remaining is not READ_UNTIL_EOF:
+            len_ = min(len_, self._in_remaining)
         log.debug('updated len_=%d', len_)
 
         # If buffer is empty, reset so that we start filling from
@@ -1071,16 +1096,32 @@ class HTTPConnection:
                     log.debug('buffer empty and nothing to read, yielding..')
                     yield PollNeeded(self._sock.fileno(), POLLIN)
             elif got_data == 0:
-                raise ConnectionClosed('server closed connection')
+                if self._in_remaining is READ_UNTIL_EOF:
+                    log.debug('connection closed, %d bytes in buffer', len(rbuf))
+                    self._in_remaining = len(rbuf)
+                    break
+                else:
+                    raise ConnectionClosed('server closed connection')
 
         len_ = min(len_, len(rbuf))
-        self._in_remaining -= len_
+        if self._in_remaining is not READ_UNTIL_EOF:
+            self._in_remaining -= len_
 
         if len_ < len(rbuf):
             buf = rbuf.d[rbuf.b:rbuf.b+len_]
             rbuf.b += len_
         else:
             buf = rbuf.exhaust()
+
+        # When reading until EOF, it is possible that we read only the EOF. In
+        # this case we won't get called again, so we need to clean-up the
+        # request. This can not happen when we know the number of remaining
+        # bytes, because in this case either the check at the start of the
+        # function hits, or we can't read the remaining data and raise.
+        if len(buf) == 0:
+            assert self._in_remaining == 0
+            self._in_remaining = None
+            self._pending_requests.popleft()
 
         log.debug('done (%d bytes)', len(buf))
         return buf
@@ -1100,8 +1141,11 @@ class HTTPConnection:
         rbuf = self._rbuf
         if not isinstance(buf, memoryview):
             buf = memoryview(buf)
-        len_ = min(len(buf), self._in_remaining)
-        log.debug('updated len_=%d', len_)
+        if self._in_remaining is READ_UNTIL_EOF:
+            len_ = len(buf)
+        else:
+            len_ = min(len(buf), self._in_remaining)
+        log.debug('set len_=%d', len_)
 
         # First use read buffer contents
         pos = min(len(rbuf), len_)
@@ -1109,7 +1153,8 @@ class HTTPConnection:
             log.debug('using buffered data')
             buf[:pos] = rbuf.d[rbuf.b:rbuf.b+pos]
             rbuf.b += pos
-            self._in_remaining -= pos
+            if self._in_remaining is not READ_UNTIL_EOF:
+                self._in_remaining -= pos
 
             # If we've read enough, return immediately
             if pos == len_:
@@ -1138,10 +1183,16 @@ class HTTPConnection:
                     continue
 
             if not read:
-                raise ConnectionClosed('server closed connection')
+                if self._in_remaining is READ_UNTIL_EOF:
+                    log.debug('reached EOF')
+                    self._in_remaining = 0
+                    return pos
+                else:
+                    raise ConnectionClosed('server closed connection')
+            log.debug('got %d bytes from socket', read)
 
-            log.debug('got %d bytes', read)
-            self._in_remaining -= read
+            if self._in_remaining is not READ_UNTIL_EOF:
+                self._in_remaining -= read
             pos += read
             if pos == len_:
                 log.debug('done (buffer filled completely)')
@@ -1157,7 +1208,7 @@ class HTTPConnection:
         log.debug('start (%s mode)', 'readinto' if buf else 'read')
         assert (len_ is None) != (buf is None)
         assert bool(len_) or bool(buf)
-        assert self._in_remaining is not None
+        assert isinstance(self._in_remaining, int)
 
         if self._in_remaining == 0:
             log.debug('starting next chunk')
