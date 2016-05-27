@@ -1357,6 +1357,14 @@ class HTTPConnection:
             log.debug('discarding %d bytes', len_)
         log.debug('done')
 
+    def reset(self):
+        '''Reset HTTP connection
+
+        This method resets the status of the HTTP connection after an exception
+        has occured. Any cached data and pending responses are discarded.
+        '''
+        self.disconnect()
+
     def disconnect(self):
         '''Close HTTP connection'''
 
