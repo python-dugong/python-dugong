@@ -429,7 +429,7 @@ class HTTPConnection:
         self._out_remaining = None
 
         #: Number of remaining bytes of the current response body (or current
-        #: chunk), or `None` if the response header has not yet been read.
+        #: chunk), or `None` if there is no active response
         self._in_remaining = None
 
         #: Transfer encoding of the active response (if any).
@@ -1113,7 +1113,7 @@ class HTTPConnection:
 
             # If we've read enough, return immediately
             if pos == len_:
-                log.debug('done (got all we need, %d bytes)', pos)
+                log.debug('done (buffer filled completely)')
                 return pos
 
             # Otherwise, prepare to read more from socket
@@ -1130,7 +1130,7 @@ class HTTPConnection:
                 raise ConnectionClosed('connection was interrupted')
             except (socket.timeout, ssl.SSLWantReadError, BlockingIOError):
                 if pos:
-                    log.debug('done (nothing more to read, got %d bytes)', pos)
+                    log.debug('done, no additional data available')
                     return pos
                 else:
                     log.debug('no data yet and nothing to read, yielding..')
@@ -1144,7 +1144,7 @@ class HTTPConnection:
             self._in_remaining -= read
             pos += read
             if pos == len_:
-                log.debug('done (got all we need, %d bytes)', pos)
+                log.debug('done (buffer filled completely)')
                 return pos
 
     def _co_read_chunked(self, len_=None, buf=None):
