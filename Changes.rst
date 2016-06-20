@@ -1,7 +1,7 @@
 .. currentmodule:: dugong
 
-Unreleased Changes
-==================
+Relase 3.7 (2016-06-20)
+=======================
 
 * Dugong now supports server responses that specify just ``Connection:
   close`` instead of providing the response length or using chunked
