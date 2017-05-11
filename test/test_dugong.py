@@ -24,7 +24,7 @@ if __name__ == '__main__':
 from dugong import (HTTPConnection, BodyFollowing, CaseInsensitiveDict, _join,
                     ConnectionClosed)
 import dugong
-from http.server import BaseHTTPRequestHandler, _quote_html
+from http.server import BaseHTTPRequestHandler
 from io import TextIOWrapper
 from base64 import b64encode
 import http.client
@@ -34,6 +34,7 @@ import time
 import ssl
 import re
 import os
+import html
 import hashlib
 import threading
 import socketserver
@@ -1163,9 +1164,12 @@ class MockRequestHandler(BaseHTTPRequestHandler):
             message = shortmsg
         explain = longmsg
         self.log_error("code %d, message %s", code, message)
-        # using _quote_html to prevent Cross Site Scripting attacks (see bug #1100201)
-        content = (self.error_message_format % {'code': code, 'message': _quote_html(message),
-                                               'explain': explain}).encode('utf-8', 'replace')
+        # HTML encode to prevent Cross Site Scripting attacks (see bug #1100201)
+        content = (self.error_message_format % {
+            'code': code,
+            'message': html.escape(message, quote=False),
+            'explain': explain
+        }).encode('utf-8', 'replace')
         self.send_response(code, message)
         self.send_header("Content-Type", self.error_content_type)
         self.send_header("Content-Length", str(len(content)))
