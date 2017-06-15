@@ -1,7 +1,13 @@
 .. currentmodule:: dugong
 
-Relase 3.7 (2016-06-20)
-=======================
+Release 3.7.1 (2017-06-05)
+==========================
+
+* Now compatible with Python 3.6.
+
+
+Release 3.7 (2016-06-20)
+========================
 
 * Dugong now supports server responses that specify just ``Connection:
   close`` instead of providing the response length or using chunked
