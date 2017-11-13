@@ -85,16 +85,17 @@ backwards-incompatible version will be 4.0. Projects designed for
 e.g. version 3.5 of Dugong are thus recommended to declare a
 dependency on ``dugong >= 3.5, < 4.0``.
 
-Professional Support
-====================
-
-Professional support is available. Please contact Nikolaus Rath
-<Nikolaus@rath.org> for details.
 
 Contributing
 ============
 
 The LLFUSE source code is available both on GitHub_ and BitBucket_.
 
+Professional Support
+--------------------
+
+Professional support is offered via `Rath Consulting`_.
+
 .. _BitBucket: https://bitbucket.org/nikratio/python-dugong/
 .. _GitHub: https://github.com/python-dugong/main
+.. _`Rath Consulting`: http://www.rath-consulting.biz/
