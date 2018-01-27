@@ -425,7 +425,6 @@ class HTTPConnection:
         self._rbuf = _Buffer(BUFFER_SIZE)
 
         #: a tuple ``(hostname, port)`` of the proxy server to use or `None`.
-        #: Note that currently only CONNECT-style proxying is supported.
         self.proxy = proxy
 
         #: a deque of ``(method, path, body_len)`` tuples corresponding to
