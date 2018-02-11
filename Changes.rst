@@ -1,5 +1,10 @@
 .. currentmodule:: dugong
 
+Release 3.7.2 (2018-02-11)
+==========================
+
+* Now compatible with py.test 3.3
+
 Release 3.7.1 (2017-06-05)
 ==========================
 
