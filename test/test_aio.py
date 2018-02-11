@@ -39,6 +39,7 @@ def read(sock):
         assert buf.decode() == 'text-%03d' % i
         log.debug('got: %s', buf)
 
+@asyncio.coroutine
 def write(sock):
     for i in range(3):
         log.debug('sleeping')
