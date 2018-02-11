@@ -3,6 +3,7 @@
 import sys
 import os.path
 import warnings
+import subprocess
 
 try:
     import setuptools
@@ -55,6 +56,7 @@ def main():
                        'Topic :: Internet :: WWW/HTTP',
                        'Topic :: Software Development :: Libraries :: Python Modules' ],
           provides=['dugong'],
+          cmdclass={'upload_docs': upload_docs },
           command_options={ 'sdist': { 'formats': ('setup.py', 'bztar') } ,
                             'build_sphinx': {'version': ('setup.py', dugong.__version__),
                                              'release': ('setup.py', dugong.__version__) }},
@@ -85,6 +87,21 @@ def fix_docutils():
     docutils.parsers.get_parser_class = get_parser_class
 
     assert docutils.parsers.get_parser_class('rst') is rst.Parser
+
+class upload_docs(setuptools.Command):
+    user_options = []
+    boolean_options = []
+    description = "Upload documentation"
+
+    def initialize_options(self):
+        pass
+
+    def finalize_options(self):
+        pass
+
+    def run(self):
+        subprocess.check_call(['rsync', '-aHv', '--del', os.path.join(basedir, 'doc', 'html') + '/',
+                               'ebox.rath.org:/srv/www.rath.org/dugong-docs/'])
 
 if __name__ == '__main__':
     main()

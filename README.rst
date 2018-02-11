@@ -69,7 +69,7 @@ The documentation can be `read online`__ and is also included in the
 Please report any bugs on the `BitBucket issue tracker`_. For discussion and
 questions, please subscribe to the `dugong mailing list`_.
 
-.. __: http://pythonhosted.org/dugong/
+.. __: http://www.rath.org/dugong-docs/
 .. _dugong mailing list: https://groups.google.com/d/forum/python-dugong
 .. _`BitBucket issue tracker`: https://bitbucket.org/nikratio/python-dugong/issues
 
