@@ -15,6 +15,7 @@ import socket
 import logging
 import errno
 import ssl
+import os
 import hashlib
 from inspect import getdoc
 import textwrap
@@ -457,6 +458,9 @@ class HTTPConnection:
         #: attribute.
         self.timeout = None
 
+        #: Filehandler for tracing
+        self.trace_fh = None
+
     # Implement bare-bones `io.BaseIO` interface, so that instances
     # can be wrapped in `io.TextIOWrapper` if desired.
     def writable(self):
@@ -515,6 +519,10 @@ class HTTPConnection:
         self._out_remaining = None
         self._in_remaining = None
         self._pending_requests = deque()
+
+        if 'DUGONG_TRACEFILE' in os.environ:
+            self.trace_fh = open(os.environ['DUGONG_TRACEFILE'] % id(self._sock),
+                                 'wb+', buffering=0)
 
         log.debug('done')
 
@@ -677,6 +685,8 @@ class HTTPConnection:
             try:
                 if self._sock is None:
                     raise ConnectionClosed('connection has been closed locally')
+                if self.trace_fh:
+                    self.trace_fh.write(buf)
                 len_ = self._sock.send(buf)
                 # An SSL socket has the nasty habit of returning zero
                 # instead of raising an exception when in non-blocking
@@ -1026,6 +1036,8 @@ class HTTPConnection:
                 buf2 = self._sock.recv(size - len(buf))
                 if not buf2:
                     break
+                if self.trace_fh:
+                    self.trace_fh.write(buf2)
                 buf += buf2
             else:
                 buf += rbuf.exhaust()
@@ -1170,6 +1182,8 @@ class HTTPConnection:
                 raise ConnectionClosed('connection has been closed locally')
             try:
                 read = self._sock.recv_into(buf[pos:len_])
+                if self.trace_fh:
+                    self.trace_fh.write(buf[pos:pos+read])
             except (ConnectionResetError, BrokenPipeError):
                 raise ConnectionClosed('connection was interrupted')
             except (socket.timeout, ssl.SSLWantReadError, BlockingIOError):
@@ -1341,6 +1355,8 @@ class HTTPConnection:
 
         try:
             len_ = self._sock.recv_into(memoryview(rbuf.d)[rbuf.e:])
+            if self.trace_fh:
+                self.trace_fh.write(rbuf.d[rbuf.e:rbuf.e+len_])
         except (socket.timeout, ssl.SSLWantReadError, BlockingIOError):
             log.debug('done (nothing ready)')
             return None
@@ -1386,6 +1402,8 @@ class HTTPConnection:
             parts.append(buf)
         buf = _join(parts)
         log.debug('done (%d bytes)', len(buf))
+        if self.trace_fh:
+            self.trace_fh.write(buf)
         return buf
 
     def discard(self):
@@ -1419,6 +1437,8 @@ class HTTPConnection:
         '''Close HTTP connection'''
 
         log.debug('start')
+        if self.trace_fh:
+            self.trace_fh.close()
         if self._sock:
             try:
                 self._sock.shutdown(socket.SHUT_RDWR)
