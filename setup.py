@@ -48,7 +48,7 @@ def main():
           keywords=['http'],
           package_dir={'': '.'},
           packages=setuptools.find_packages(),
-          url='https://bitbucket.org/nikratio/python-dugong',
+          url='https://github.com/python-dugong/python-dugong/',
           classifiers=['Programming Language :: Python :: 3',
                        'Development Status :: 5 - Production/Stable',
                        'Intended Audience :: Developers',

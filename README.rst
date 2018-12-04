@@ -66,12 +66,12 @@ Getting Help
 The documentation can be `read online`__ and is also included in the
 *doc/html* directory of the dugong tarball.
 
-Please report any bugs on the `BitBucket issue tracker`_. For discussion and
+Please report any bugs on the `issue tracker`_. For discussion and
 questions, please subscribe to the `dugong mailing list`_.
 
 .. __: http://www.rath.org/dugong-docs/
 .. _dugong mailing list: https://groups.google.com/d/forum/python-dugong
-.. _`BitBucket issue tracker`: https://bitbucket.org/nikratio/python-dugong/issues
+.. _`issue tracker`: https://github.com/python-dugong/python-dugong/issues
 
 
 Development Status
@@ -89,13 +89,12 @@ dependency on ``dugong >= 3.5, < 4.0``.
 Contributing
 ============
 
-The LLFUSE source code is available both on GitHub_ and BitBucket_.
+The LLFUSE source code is available on GitHub_.
 
 Professional Support
 --------------------
 
 Professional support is offered via `Rath Consulting`_.
 
-.. _BitBucket: https://bitbucket.org/nikratio/python-dugong/
-.. _GitHub: https://github.com/python-dugong/main
+.. _GitHub: https://github.com/python-dugong/python-dugong
 .. _`Rath Consulting`: http://www.rath-consulting.biz/
