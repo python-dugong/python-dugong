@@ -4,7 +4,7 @@ Release 3.7.4 (2019-01-19)
 ==========================
 
 * All traffic can now be dumped for debugging purposes using the
-  `DUGONG_TRACEFILE` environment variable. Make sure to include `%d`
+  ``DUGONG_TRACEFILE`` environment variable. Make sure to include `%d`
   somewhere in the filename - it will be replaced with a unique number
   to distinguish between different connections.
 
