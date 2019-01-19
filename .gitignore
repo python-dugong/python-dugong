@@ -1,0 +1,6 @@
+dugong.egg-info/
+/test/.cache/
+/build/
+/dist/
+/doc/
+__pycache__/
