@@ -40,7 +40,7 @@ try:
 except ImportError:
     Enum = object
 
-__version__ = '3.7.3'
+__version__ = '3.7.4'
 
 log = logging.getLogger(__name__)
 
