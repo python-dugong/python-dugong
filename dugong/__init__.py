@@ -1753,7 +1753,7 @@ if asyncio:
                     return
 
             if io_req.mask & POLLOUT:
-                writer = self._read_fds.get(io_req.fd, None)
+                writer = self._write_fds.get(io_req.fd, None)
                 if writer is None:
                     log.debug('got poll needed, registering writer')
                     self._loop.add_writer(io_req.fd, self._resume_crt)
