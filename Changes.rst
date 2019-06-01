@@ -1,5 +1,10 @@
 .. currentmodule:: dugong
 
+Unreleased Changes
+==================
+
+* Fixed a deadlock when resuming coroutines.
+
 Release 3.7.4 (2019-01-19)
 ==========================
 
