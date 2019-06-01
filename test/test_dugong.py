@@ -83,10 +83,17 @@ def pytest_generate_tests(metafunc):
     if not 'http_server' in metafunc.fixturenames:
         return
 
-    if getattr(metafunc.function, 'no_ssl', False):
-        params = ('plain',)
+    if hasattr(metafunc, 'definition'):
+        if metafunc.definition.get_closest_marker('no_ssl'):
+            params = ('plain',)
+        else:
+            params = ('plain', 'ssl')
     else:
-        params = ('plain', 'ssl')
+        # pytest < 3.6
+        if getattr(metafunc.function, 'no_ssl', False):
+            params = ('plain',)
+        else:
+            params = ('plain', 'ssl')
 
     metafunc.parametrize("http_server", params,
                          indirect=True, scope='module')
