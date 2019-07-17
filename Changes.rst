@@ -1,9 +1,10 @@
 .. currentmodule:: dugong
 
-Unreleased Changes
-==================
+Release 3.7.5 (2019-07-17)
+==========================
 
 * Fixed a deadlock when resuming coroutines.
+* Made compatible with pytest 4.
 
 Release 3.7.4 (2019-01-19)
 ==========================
