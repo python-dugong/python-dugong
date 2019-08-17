@@ -89,7 +89,7 @@ dependency on ``dugong >= 3.5, < 4.0``.
 Contributing
 ============
 
-The LLFUSE source code is available on GitHub_.
+The source code is available on GitHub_.
 
 Professional Support
 --------------------
