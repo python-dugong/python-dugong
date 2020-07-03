@@ -36,11 +36,12 @@ operation can be carried out without blocking.
 The `PollNeeded` instance contains information about the I/O request
 that the coroutine would like to perform. The `~PollNeeded.fd`
 attribute is a file descriptor, and the `~PollNeeded.mask` attribute
-is an :ref:`epoll <epoll-objects>` compatible event mask. Therefore, a
+is an :ref:`poll <poll-objects>` compatible event mask. Therefore, a
 very simple way to wait for a coroutine to complete is to use a
 `~select.select` loop::
 
-  from select import select, POLLIN
+  from select import select
+  from dugong import POLLIN, POLLOUT
 
   # establish connection, send request, read response header
 

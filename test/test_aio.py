@@ -15,9 +15,8 @@ if __name__ == '__main__':
     sys.exit(pytest.main([__file__] + sys.argv[1:]))
 
 import socket
-from select import POLLIN
 import logging
-from dugong import PollNeeded
+from dugong import PollNeeded, POLLIN
 
 try:
     import asyncio

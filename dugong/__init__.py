@@ -25,8 +25,14 @@ from collections.abc import MutableMapping, Mapping
 import email
 import email.policy
 from http.client import (HTTPS_PORT, HTTP_PORT, NO_CONTENT, NOT_MODIFIED)
-from select import POLLIN, POLLOUT
 import select
+try:
+    from select import POLLIN, POLLOUT
+    _USE_POLL = True
+except ImportError:
+    POLLIN, POLLOUT = 1, 2
+    _USE_POLL = False
+
 import sys
 
 try:
@@ -135,21 +141,31 @@ class PollNeeded(tuple):
         '''Wait until fd is ready for requested IO
 
         This is a convenince function that uses `~select.poll` to wait until
-        `.fd` is ready for requested type of IO.
+        `.fd` is ready for the requested type of IO. If poll is unavailable
+        (e.g. on Windows) it uses `~select.select` instead.
 
         If *timeout* is specified, return `False` if the timeout is exceeded
         without the file descriptor becoming ready.
         '''
 
-        poll = select.poll()
-        poll.register(self.fd, self.mask)
+        if _USE_POLL:
+            poll = select.poll()
+            poll.register(self.fd, self.mask)
 
-        log.debug('calling poll')
-        if timeout:
-            return bool(poll.poll(timeout*1000)) # convert to ms
+            log.debug('calling poll')
+            if timeout:
+                return bool(poll.poll(timeout*1000)) # convert to ms
+            else:
+                return bool(poll.poll())
         else:
-            return bool(poll.poll())
+            read_fds = (self.fd,) if self.mask & POLLIN else ()
+            write_fds = (self.fd,) if self.mask & POLLOUT else ()
 
+            log.debug('calling select')
+            if timeout:
+                return any(select.select(read_fds, write_fds, (), timeout))
+            else:
+                return any(select.select(read_fds, write_fds, ()))
 
 
 class HTTPResponse:
