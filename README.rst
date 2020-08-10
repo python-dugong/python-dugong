@@ -91,10 +91,4 @@ Contributing
 
 The source code is available on GitHub_.
 
-Professional Support
---------------------
-
-Professional support is offered via `Rath Consulting`_.
-
 .. _GitHub: https://github.com/python-dugong/python-dugong
-.. _`Rath Consulting`: http://www.rath-consulting.biz/
