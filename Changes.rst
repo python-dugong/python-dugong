@@ -1,5 +1,10 @@
 .. currentmodule:: dugong
 
+Release 3.8.0 (2020-11-09)
+==========================
+
+* Dugong now works under Windows.
+
 Release 3.7.5 (2019-07-17)
 ==========================
 
