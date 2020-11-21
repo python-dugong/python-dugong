@@ -56,6 +56,7 @@ def main():
                        'Topic :: Internet :: WWW/HTTP',
                        'Topic :: Software Development :: Libraries :: Python Modules' ],
           provides=['dugong'],
+          tests_require=['pytest >= 3.4.0'],
           cmdclass={'upload_docs': upload_docs },
           command_options={ 'sdist': { 'formats': ('setup.py', 'bztar') } ,
                             'build_sphinx': {'version': ('setup.py', dugong.__version__),
