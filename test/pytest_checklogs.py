@@ -16,7 +16,6 @@ to stdout/stderr), and a `assert_logs` function (for logging messages).
 import pytest
 import re
 import functools
-import sys
 import logging
 from contextlib import contextmanager
 
@@ -114,4 +113,4 @@ def check_output(caplog, capfd, request):
             if (record.levelno >= logging.WARNING and
                 not getattr(record, 'checklogs_ignore', False)):
                 pytest.fail('Logger received warning messages.')
-    check_test_output(capfd, request)
+    check_test_output(capfd, request.node)
