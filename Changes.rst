@@ -1,5 +1,10 @@
 .. currentmodule:: dugong
 
+Release 3.8.1 (2021-01-10)
+==========================
+
+* Dugong is now compatible with pytest 6.x and newer.
+
 Release 3.8.0 (2020-11-09)
 ==========================
 
