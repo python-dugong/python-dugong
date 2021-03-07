@@ -244,10 +244,10 @@ class _GeneralError(Exception):
 class HostnameNotResolvable(Exception):
     '''Raised if a host name does not resolve to an ip address.
 
-    Dugong raises this exception if a resolution attempt results in a
-    `socket.gaierror` or `socket.herror` exception with errno
-    :const:`!socket.EAI_AGAIN` or :const:`!socket.EAI_NONAME`, but at least one of
-    the hostnames in `DNS_TEST_HOSTNAMES` can be resolved.
+    Dugong raises this exception if a resolution attempt results in a `socket.gaierror` or
+    `socket.herror` exception with errno :const:`!socket.EAI_NODATA` or
+    :const:`!socket.EAI_NONAME`, but at least one of the hostnames in `DNS_TEST_HOSTNAMES`
+    can be resolved.
     '''
 
     def __init__(self, hostname):
@@ -260,10 +260,9 @@ class HostnameNotResolvable(Exception):
 class DNSUnavailable(Exception):
     '''Raised if the DNS server cannot be reached.
 
-    Dugong raises this exception if a resolution attempt results in a
-    `socket.gaierror` or `socket.herror` exception with errno
-    :const:`!socket.EAI_AGAIN` or :const:`!socket.EAI_NONAME`, and none of the
-    hostnames in `DNS_TEST_HOSTNAMES` can be resolved either.
+    Dugong raises this exception if a resolution attempt results in a `socket.gaierror` or
+    `socket.herror` exception with errno :const:`socket.EAI_AGAIN`, or if none of the
+    hostnames in `DNS_TEST_HOSTNAMES` can be resolved.
     '''
 
     def __init__(self, hostname):
@@ -271,6 +270,17 @@ class DNSUnavailable(Exception):
 
     def __str__(self):
         return 'Unable to resolve %s, DNS server unavailable.' % self.name
+
+
+class HostnameNotResolvableOrDNSUnavailable(Exception):
+    '''Raised if a host name does not resolve or DNS server cannot be reached.'''
+
+    def __init__(self, hostname):
+        self.name = hostname
+
+    def __str__(self):
+        return 'Unable to resolve host %s' % self.name
+
 
 class StateError(_GeneralError):
     '''
@@ -1548,28 +1558,35 @@ def create_socket(address):
     is available and that *address* can not be resolved.
     '''
 
+    def try_connect(fn, arg):
+        try:
+            return fn()
+        except (socket.gaierror, socket.herror) as exc:
+            if exc.errno == socket.EAI_AGAIN:
+                raise DNSUnavailable(arg)
+            elif exc.errno in (socket.EAI_NODATA, socket.EAI_NONAME):
+                raise HostnameNotResolvableOrDNSUnavailable(arg)
+            else:
+                raise
+
     try:
-        return socket.create_connection(address)
+        return try_connect(lambda: socket.create_connection(address), address[0])
+    except HostnameNotResolvableOrDNSUnavailable:
+        pass
 
-    # The exception unfortunately does not help us to distinguish between
-    # permanent and temporary problems. See:
-    # https://stackoverflow.com/questions/24855168/
-    # https://stackoverflow.com/questions/24855669/
-    except (socket.gaierror, socket.herror) as exc:
-        if exc.errno not in (socket.EAI_AGAIN, socket.EAI_NONAME):
-            raise
+    # Unfortunately, some exceptions do not help us to distinguish between
+    # permanent and temporary problems (cf. https://stackoverflow.com/questions/24855168/,
+    # https://stackoverflow.com/questions/24855669/). Therefore, we try to resolve
+    # "well-known" hosts to resolve the ambiguity.
 
-    # Try to resolve test hosts
     for (hostname, port) in DNS_TEST_HOSTNAMES:
         try:
-            socket.getaddrinfo(hostname, port)
-        except (socket.gaierror, socket.herror) as exc:
-            if exc.errno not in (socket.EAI_AGAIN, socket.EAI_NONAME):
-                raise
-            # Not reachable, try next one
+            try_connect(lambda: socket.getaddrinfo(hostname, port), address[0])
+        except HostnameNotResolvableOrDNSUnavailable:
+            pass
         else:
-            # Reachable, now try to resolve original address
-            # again (maybe dns was only down briefly)
+            # Reachable, now try to resolve original address again (maybe dns was only
+            # down briefly)
             break
     else:
         # No host was reachable
@@ -1577,10 +1594,8 @@ def create_socket(address):
 
     # Try to connect to original host again
     try:
-        return socket.create_connection(address)
-    except (socket.gaierror, socket.herror) as exc:
-        if exc.errno not in (socket.EAI_AGAIN, socket.EAI_NONAME):
-            raise
+        return try_connect(lambda: socket.create_connection(address), address[0])
+    except HostnameNotResolvableOrDNSUnavailable:
         raise HostnameNotResolvable(address[0])
 
 
@@ -1603,7 +1618,7 @@ def is_temp_network_error(exc):
         for errcode in ('EHOSTDOWN', 'EHOSTUNREACH', 'ENETDOWN',
                         'ENETRESET', 'ENETUNREACH', 'ENOLINK',
                         'ENONET', 'ENOTCONN', 'ENXIO', 'EPIPE',
-                        'EREMCHG', 'ESHUTDOWN', 'ETIMEDOUT'):
+                        'EREMCHG', 'ESHUTDOWN', 'ETIMEDOUT', 'EAGAIN'):
             try:
                 if getattr(errno, errcode) == exc.errno:
                     return True
