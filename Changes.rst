@@ -1,7 +1,7 @@
 .. currentmodule:: dugong
 
-Unreleased Changes
-==================
+Release 3.8.2 (2021-07-04)
+==========================
 
 * Improved distinction between the DNS server not being available and a hostname not
   existing.
