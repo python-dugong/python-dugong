@@ -48,6 +48,7 @@ def write(sock):
         sock.send(buf)
 
 def test_aio_future():
+    asyncio.set_event_loop(asyncio.new_event_loop())
     loop = asyncio.get_event_loop()
     try:
         (sock1, sock2) = socket.socketpair()
